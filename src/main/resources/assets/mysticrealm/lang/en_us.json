@@ -1,0 +1,21 @@
+{
+  "mysticrealm.configuration.title": "MysticRealm Configs",
+  "mysticrealm.configuration.section.mysticrealm-common.toml": "MysticRealm",
+  "mysticrealm.configuration.section.mysticrealm-common.toml.title": "MysticRealm",
+  "mysticrealm.configuration.general.maxLevel": "Max Level",
+  "mysticrealm.configuration.general.debugLogging": "Debug Logging",
+  "mysticrealm.configuration.vampire.startingBlood": "Starting Blood",
+  "mysticrealm.configuration.vampire.maxBlood": "Max Blood",
+  "mysticrealm.configuration.vampire.bloodDrainAmount": "Blood Drain Amount",
+  "mysticrealm.configuration.vampire.bloodDrainIntervalSeconds": "Blood Drain Interval (seconds)",
+  "mysticrealm.configuration.vampire.sunlightDamageEnabled": "Sunlight Damage Enabled",
+  "mysticrealm.configuration.vampire.sunlightMaxSurvivalSeconds": "Sunlight Max Survival Seconds (at max level)",
+  "mysticrealm.configuration.vampire.regenerationThreshold": "Regeneration Threshold",
+  "mysticrealm.configuration.vampire.speedThreshold": "Speed Threshold",
+  "mysticrealm.configuration.vampire.immortalityEnabled": "Immortality Enabled",
+  "mysticrealm.configuration.vampire.minimumHealth": "Minimum Health (immortality floor)",
+  "mysticrealm.configuration.vampire.nearDeathDebuffDuration": "Near-Death Debuff Duration (ticks)",
+  "item.mysticrealm.wooden_stake": "Wooden Stake",
+  "item.mysticrealm.blood_vial": "Blood Vial",
+  "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight"
+}
