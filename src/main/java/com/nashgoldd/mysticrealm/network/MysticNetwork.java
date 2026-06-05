@@ -41,8 +41,6 @@ public final class MysticNetwork {
     public static void syncVampireToClient(ServerPlayer player) {
         VampireData data = player.getData(MysticAttachments.VAMPIRE_DATA);
         PacketDistributor.sendToPlayer(player, new SyncVampireDataPacket(
-            data.getBloodLevel(),
-            data.getMaxBlood(),
             data.isTransformed(),
             data.isSunlightBurning(),
             data.isNearDeath()

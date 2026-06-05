@@ -7,8 +7,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 public record SyncVampireDataPacket(
-    int bloodLevel,
-    int maxBlood,
     boolean transformed,
     boolean sunlightBurning,
     boolean nearDeath
@@ -22,8 +20,6 @@ public record SyncVampireDataPacket(
             @Override
             public SyncVampireDataPacket decode(RegistryFriendlyByteBuf buf) {
                 return new SyncVampireDataPacket(
-                    buf.readVarInt(),
-                    buf.readVarInt(),
                     buf.readBoolean(),
                     buf.readBoolean(),
                     buf.readBoolean()
@@ -32,8 +28,6 @@ public record SyncVampireDataPacket(
 
             @Override
             public void encode(RegistryFriendlyByteBuf buf, SyncVampireDataPacket packet) {
-                buf.writeVarInt(packet.bloodLevel());
-                buf.writeVarInt(packet.maxBlood());
                 buf.writeBoolean(packet.transformed());
                 buf.writeBoolean(packet.sunlightBurning());
                 buf.writeBoolean(packet.nearDeath());

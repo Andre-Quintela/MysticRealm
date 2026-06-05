@@ -12,22 +12,25 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import com.nashgoldd.mysticrealm.util.MysticRealmLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodData;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 public class VampireEventHandler {
-
-    private static final int NEAR_DEATH_DEBUFF_TICK_INTERVAL = 40;
 
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
@@ -39,21 +42,25 @@ public class VampireEventHandler {
 
         VampireData data = VampireService.getData(player);
 
-        tickBloodDrain(sp, data);
+        // Manter saturação zero — evita regeneração vanilla interferir com nossa lógica
+        sp.getFoodData().setSaturation(0f);
+
+        tickBloodDrain(sp);
         tickSunlight(sp, data, level);
-        tickPassiveEffects(sp, data);
+        tickPassiveEffects(sp);
         tickNearDeath(sp, data);
     }
 
-    private void tickBloodDrain(ServerPlayer player, VampireData data) {
+    private void tickBloodDrain(ServerPlayer player) {
         int intervalTicks = MysticConfig.VAMPIRE_BLOOD_DRAIN_INTERVAL_SECONDS.get() * 20;
         if (intervalTicks <= 0) return;
 
         if (player.tickCount % intervalTicks == 0) {
-            int drain = MysticConfig.VAMPIRE_BLOOD_DRAIN_AMOUNT.get();
-            data.removeBlood(drain, player);
+            FoodData food = player.getFoodData();
+            int drainUnits = Math.max(1, MysticConfig.VAMPIRE_BLOOD_DRAIN_AMOUNT.get() / 5);
+            food.setFoodLevel(Math.max(0, food.getFoodLevel() - drainUnits));
             MysticNetwork.syncVampireToClient(player);
-            MysticRealmLogger.debug("Drenagem de sangue: -{} → {}", drain, data.getBloodLevel());
+            MysticRealmLogger.debug("Drenagem de sangue: -{} food unit(s) → {}/20", drainUnits, food.getFoodLevel());
         }
     }
 
@@ -88,8 +95,9 @@ public class VampireEventHandler {
             && level.getRainLevel(1.0f) < 0.5f;
     }
 
-    private void tickPassiveEffects(ServerPlayer player, VampireData data) {
-        int blood = data.getBloodLevel();
+    private void tickPassiveEffects(ServerPlayer player) {
+        // blood como percentual 0-100 derivado de FoodData (0-20 → 0-100)
+        int blood = player.getFoodData().getFoodLevel() * 5;
         int regenThreshold = MysticConfig.VAMPIRE_REGENERATION_THRESHOLD.get();
         int speedThreshold = MysticConfig.VAMPIRE_SPEED_THRESHOLD.get();
 
@@ -110,7 +118,6 @@ public class VampireEventHandler {
             player.removeEffect(MobEffects.SPEED);
         }
 
-        // Penalidades por fome de sangue
         applyBloodPenalties(player, blood, regenThreshold, speedThreshold);
     }
 
@@ -118,19 +125,15 @@ public class VampireEventHandler {
         int halfRegen = regenThreshold / 2;
 
         if (blood >= regenThreshold) {
-            // Sem penalidade
             player.removeEffect(MobEffects.WEAKNESS);
             player.removeEffect(MobEffects.SLOWNESS);
         } else if (blood >= speedThreshold) {
-            // Fraqueza leve
             ensureEffect(player, MobEffects.WEAKNESS, 200, 0);
             player.removeEffect(MobEffects.SLOWNESS);
         } else if (blood >= halfRegen) {
-            // Fraqueza moderada
             ensureEffect(player, MobEffects.WEAKNESS, 200, 0);
             ensureEffect(player, MobEffects.SLOWNESS, 200, 0);
         } else {
-            // Fraqueza severa
             ensureEffect(player, MobEffects.WEAKNESS, 200, 1);
             ensureEffect(player, MobEffects.SLOWNESS, 200, 1);
         }
@@ -143,23 +146,17 @@ public class VampireEventHandler {
         float maxHealth = player.getMaxHealth();
 
         if (vampireLevel <= 1 || maxLevel <= 1) {
-            // Level 1: morte instantânea — dano muito acima da vida máxima
             return maxHealth * 10f;
         }
 
-        // t = 0 no level 2, t = 1 no level máximo
         float t = (float)(vampireLevel - 1) / (maxLevel - 1);
         float maxSurvivalSeconds = MysticConfig.VAMPIRE_SUNLIGHT_MAX_SURVIVAL_SECONDS.get().floatValue();
-
-        // Interpolação linear: 0.05s de sobrevivência no level 2 → maxSurvivalSeconds no level max
         float survivalSeconds = 0.05f + t * (maxSurvivalSeconds - 0.05f);
         return maxHealth / survivalSeconds;
     }
 
     private void tickNearDeath(ServerPlayer player, VampireData data) {
         if (!data.isNearDeath()) return;
-        // near-death é zerado quando os efeitos de slowness/weakness expiram naturalmente
-        // Verificamos aqui se os efeitos ainda estão ativos
         if (!player.hasEffect(MobEffects.SLOWNESS) && !player.hasEffect(MobEffects.WEAKNESS)) {
             data.setNearDeath(false);
             MysticNetwork.syncVampireToClient(player);
@@ -173,16 +170,28 @@ public class VampireEventHandler {
         }
     }
 
+    // Bloquear ingestão de alimentos comuns para vampiros
+    @SubscribeEvent
+    public void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        Player player = event.getEntity();
+        if (!VampireService.isVampire(player)) return;
+        ItemStack stack = event.getItemStack();
+        if (stack.has(DataComponents.FOOD)) {
+            event.setCanceled(true);
+            if (!player.level().isClientSide()) {
+                player.sendSystemMessage(Component.literal("§4Vampiros não podem consumir alimentos comuns."));
+            }
+        }
+    }
+
     @SubscribeEvent
     public void onLivingDeath(LivingDeathEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (!VampireService.isVampire(player)) return;
         if (!MysticConfig.VAMPIRE_IMMORTALITY_ENABLED.get()) return;
 
-        // Fraquezas sobrenaturais podem matar normalmente
         if (VampireWeaknessRegistry.isLethalToVampire(event.getSource())) return;
 
-        // Imortalidade: cancela a morte
         event.setCanceled(true);
 
         float minHealth = MysticConfig.VAMPIRE_MINIMUM_HEALTH.get().floatValue();

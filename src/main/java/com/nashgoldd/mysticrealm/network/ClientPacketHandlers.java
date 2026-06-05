@@ -38,14 +38,12 @@ public final class ClientPacketHandlers {
             if (player == null) return;
 
             VampireData data = player.getData(MysticAttachments.VAMPIRE_DATA);
-            data.setBloodLevelRaw(packet.bloodLevel());
-            data.setMaxBloodRaw(packet.maxBlood());
             data.setTransformedRaw(packet.transformed());
             data.setSunlightBurningRaw(packet.sunlightBurning());
             data.setNearDeathRaw(packet.nearDeath());
 
-            MysticRealmLogger.debug("Dados vampíricos sincronizados: blood={}/{}, transformed={}, nearDeath={}",
-                packet.bloodLevel(), packet.maxBlood(), packet.transformed(), packet.nearDeath());
+            MysticRealmLogger.debug("Dados vampíricos sincronizados: transformed={}, sunlight={}, nearDeath={}",
+                packet.transformed(), packet.sunlightBurning(), packet.nearDeath());
         });
     }
 }

@@ -1,7 +1,6 @@
 package com.nashgoldd.mysticrealm.supernatural.vampire.service;
 
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
-import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.race.RaceType;
@@ -33,9 +32,12 @@ public final class VampireService {
 
         sData.setRace(RaceType.VAMPIRE, player);
 
-        int startingBlood = MysticConfig.VAMPIRE_STARTING_BLOOD.get();
-        int maxBlood = MysticConfig.VAMPIRE_MAX_BLOOD.get();
-        vData.resetToDefaults(startingBlood, maxBlood);
+        vData.setTransformed(true);
+        vData.setSunlightBurning(false);
+        vData.setNearDeath(false);
+        // Sangue cheio ao transformar (foodLevel 20 = 100% sangue)
+        player.getFoodData().setFoodLevel(20);
+        player.getFoodData().setSaturation(0f);
 
         NeoForge.EVENT_BUS.post(new VampireTransformEvent(player, oldRace));
 
@@ -53,6 +55,9 @@ public final class VampireService {
         vData.setTransformed(false);
         vData.setNearDeath(false);
         vData.setSunlightBurning(false);
+        // Restaurar fome vanilla ao curar
+        player.getFoodData().setFoodLevel(20);
+        player.getFoodData().setSaturation(5f);
 
         player.removeEffect(MobEffects.NIGHT_VISION);
         player.removeEffect(MobEffects.REGENERATION);

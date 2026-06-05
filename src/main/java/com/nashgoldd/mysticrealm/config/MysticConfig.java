@@ -13,8 +13,6 @@ public final class MysticConfig {
 
     // ── Vampiro ───────────────────────────────────────────────────────────────
 
-    public static final ModConfigSpec.IntValue VAMPIRE_STARTING_BLOOD;
-    public static final ModConfigSpec.IntValue VAMPIRE_MAX_BLOOD;
     public static final ModConfigSpec.IntValue VAMPIRE_BLOOD_DRAIN_AMOUNT;
     public static final ModConfigSpec.IntValue VAMPIRE_BLOOD_DRAIN_INTERVAL_SECONDS;
     public static final ModConfigSpec.BooleanValue VAMPIRE_SUNLIGHT_DAMAGE_ENABLED;
@@ -41,14 +39,6 @@ public final class MysticConfig {
         BUILDER.pop();
 
         BUILDER.comment("Configurações do sistema vampírico").push("vampire");
-
-        VAMPIRE_STARTING_BLOOD = BUILDER
-            .comment("Sangue inicial ao transformar em vampiro")
-            .defineInRange("startingBlood", 100, 0, Integer.MAX_VALUE);
-
-        VAMPIRE_MAX_BLOOD = BUILDER
-            .comment("Sangue máximo do vampiro")
-            .defineInRange("maxBlood", 100, 1, Integer.MAX_VALUE);
 
         VAMPIRE_BLOOD_DRAIN_AMOUNT = BUILDER
             .comment("Quantidade de sangue drenado por intervalo")

@@ -47,13 +47,13 @@ public final class MysticCommands {
                 .then(Commands.literal("info")
                     .executes(ctx -> cmdInfo(ctx.getSource())))
 
-                // ── Sangue ───────────────────────────────────────────────────
+                // ── Sangue (0-100, mapeado para foodLevel 0-20) ──────────────
                 .then(Commands.literal("blood")
                     .then(Commands.literal("set")
                         .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
                             .executes(ctx -> cmdBloodSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "value")))))
                     .then(Commands.literal("add")
-                        .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
                             .executes(ctx -> cmdBloodAdd(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "value")))))
                     .then(Commands.literal("info")
                         .executes(ctx -> cmdBloodInfo(ctx.getSource()))))
@@ -116,7 +116,7 @@ public final class MysticCommands {
         return 1;
     }
 
-    // ── Handlers de sangue ────────────────────────────────────────────────────
+    // ── Handlers de sangue (0-100 → foodLevel 0-20) ───────────────────────────
 
     private static int cmdBloodSet(CommandSourceStack source, int value)
             throws CommandSyntaxException {
@@ -125,10 +125,10 @@ public final class MysticCommands {
             source.sendFailure(Component.literal("Apenas vampiros têm sangue."));
             return 0;
         }
-        VampireData data = VampireService.getData(player);
-        data.setBloodLevel(value, player);
+        player.getFoodData().setFoodLevel(value / 5);
         MysticNetwork.syncVampireToClient(player);
-        source.sendSuccess(() -> Component.literal("Blood set to " + data.getBloodLevel() + "/" + data.getMaxBlood()), false);
+        int actual = player.getFoodData().getFoodLevel() * 5;
+        source.sendSuccess(() -> Component.literal("Blood set to " + actual + "/100"), false);
         return 1;
     }
 
@@ -139,10 +139,11 @@ public final class MysticCommands {
             source.sendFailure(Component.literal("Apenas vampiros têm sangue."));
             return 0;
         }
-        VampireData data = VampireService.getData(player);
-        data.addBlood(amount, player);
+        int current = player.getFoodData().getFoodLevel();
+        player.getFoodData().setFoodLevel(Math.min(20, current + amount / 5));
         MysticNetwork.syncVampireToClient(player);
-        source.sendSuccess(() -> Component.literal("Blood +" + amount + " → " + data.getBloodLevel() + "/" + data.getMaxBlood()), false);
+        int actual = player.getFoodData().getFoodLevel() * 5;
+        source.sendSuccess(() -> Component.literal("Blood +" + amount + " → " + actual + "/100"), false);
         return 1;
     }
 
@@ -153,8 +154,9 @@ public final class MysticCommands {
             return 0;
         }
         VampireData data = VampireService.getData(player);
+        int blood = player.getFoodData().getFoodLevel() * 5;
         source.sendSuccess(() -> Component.literal(
-            "§6[Vampiro]§r Blood: §4" + data.getBloodLevel() + "§r/" + data.getMaxBlood() +
+            "§6[Vampiro]§r Blood: §4" + blood + "§r/100" +
             " | Transformed: " + data.isTransformed() +
             " | Sunlight: " + data.isSunlightBurning() +
             " | NearDeath: " + data.isNearDeath()
@@ -167,8 +169,8 @@ public final class MysticCommands {
     private static int cmdVampireTransform(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         VampireService.transform(player);
-        source.sendSuccess(() -> Component.literal("§4Transformado em Vampiro.§r Blood: " +
-            VampireService.getData(player).getBloodLevel()), false);
+        int blood = player.getFoodData().getFoodLevel() * 5;
+        source.sendSuccess(() -> Component.literal("§4Transformado em Vampiro.§r Blood: " + blood + "/100"), false);
         return 1;
     }
 
