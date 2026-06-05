@@ -6,6 +6,7 @@ import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelState;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainPacket;
@@ -14,6 +15,11 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPac
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -104,9 +110,54 @@ public final class MysticNetwork {
                 bloodMax
             );
         } else {
-            packet = new SyncDrainStatePacket(false, 0, BloodDrainAction.INSTANCE.getDurationTicks(), cooldown, 0f, 0f);
+            float bloodCurrent = 0f;
+            float bloodMax = 0f;
+            LivingEntity hovered = findHoveredLivingEntity(player, 5.0);
+            if (hovered != null) {
+                if (hovered.hasData(MysticAttachments.ENTITY_BLOOD)) {
+                    EntityBloodData bd = hovered.getData(MysticAttachments.ENTITY_BLOOD);
+                    if (bd.isInitialized()) {
+                        bloodCurrent = bd.getCurrentBlood();
+                        bloodMax = bd.getMaxBlood();
+                    }
+                }
+                // Entidade nunca drenada — exibe pool cheio calculado pela vida máxima
+                if (bloodMax == 0f) {
+                    bloodMax = BloodBalance.maxBloodForEntity(hovered);
+                    bloodCurrent = bloodMax;
+                }
+            }
+            packet = new SyncDrainStatePacket(false, 0, BloodDrainAction.INSTANCE.getDurationTicks(), cooldown, bloodCurrent, bloodMax);
         }
 
         PacketDistributor.sendToPlayer(player, packet);
+    }
+
+    private static LivingEntity findHoveredLivingEntity(ServerPlayer player, double range) {
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 lookVec = player.getLookAngle();
+        AABB searchBox = new AABB(eyePos, eyePos).inflate(range);
+
+        LivingEntity closest = null;
+        double closestDist = range * range + 1.0;
+
+        for (LivingEntity e : player.level().getEntitiesOfClass(LivingEntity.class, searchBox,
+                le -> le != player && !le.isSpectator())) {
+            Vec3 toEntity = e.getBoundingBox().getCenter().subtract(eyePos);
+            double dist = toEntity.lengthSqr();
+            if (dist >= closestDist) continue;
+            if (toEntity.normalize().dot(lookVec) < 0.95) continue;
+
+            // Verifica linha de visão — ignora entidades atrás de blocos
+            Vec3 entityCenter = e.getBoundingBox().getCenter();
+            BlockHitResult blockHit = player.level().clip(new ClipContext(
+                eyePos, entityCenter,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+            if (blockHit.getType() != HitResult.Type.MISS) continue;
+
+            closest = e;
+            closestDist = dist;
+        }
+        return closest;
     }
 }

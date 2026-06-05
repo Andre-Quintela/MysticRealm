@@ -25,7 +25,7 @@ public final class MysticConfig {
 
     // ── Pool de sangue das entidades ──────────────────────────────────────────
 
-    public static final ModConfigSpec.DoubleValue ENTITY_BLOOD_REGEN_RATE;
+    public static final ModConfigSpec.DoubleValue ENTITY_BLOOD_REGEN_FRACTION;
     public static final ModConfigSpec.IntValue    ENTITY_BLOOD_REGEN_INTERVAL_TICKS;
     public static final ModConfigSpec.DoubleValue ENTITY_EXSANGUINATION_DAMAGE;
     public static final ModConfigSpec.DoubleValue BLOOD_DRAIN_AMOUNT_PER_INTERVAL;
@@ -83,13 +83,13 @@ public final class MysticConfig {
             .comment("Duração dos debuffs de quase-morte em ticks (600 = 30 segundos)")
             .defineInRange("nearDeathDebuffDuration", 600, 20, Integer.MAX_VALUE);
 
-        ENTITY_BLOOD_REGEN_RATE = BUILDER
-            .comment("Sangue regenerado por intervalo de regen (padrão: 1.0)")
-            .defineInRange("entityBloodRegenRate", 1.0, 0.0, Double.MAX_VALUE);
+        ENTITY_BLOOD_REGEN_FRACTION = BUILDER
+            .comment("Fração do maxBlood regenerada por intervalo (0.05 = 5% → 20 intervalos para encher = 1 dia MC)")
+            .defineInRange("entityBloodRegenFraction", 0.05, 0.0, 1.0);
 
         ENTITY_BLOOD_REGEN_INTERVAL_TICKS = BUILDER
-            .comment("Ticks entre regenerações de sangue das entidades (padrão: 400 = 20s)")
-            .defineInRange("entityBloodRegenIntervalTicks", 400, 1, Integer.MAX_VALUE);
+            .comment("Ticks entre regenerações de sangue das entidades (1200 = 60s; 20 × 1200 = 24000 ticks = 1 dia MC)")
+            .defineInRange("entityBloodRegenIntervalTicks", 1200, 1, Integer.MAX_VALUE);
 
         ENTITY_EXSANGUINATION_DAMAGE = BUILDER
             .comment("Dano por intervalo de drenagem quando o pool de sangue da entidade está vazio (padrão: 1.0)")

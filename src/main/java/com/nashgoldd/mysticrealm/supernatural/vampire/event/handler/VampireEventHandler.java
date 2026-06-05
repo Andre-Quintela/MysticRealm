@@ -56,7 +56,7 @@ public class VampireEventHandler {
 
         // Tick do sistema de canalização (drenagem de sangue, etc.)
         ChannelService.tick(sp);
-        if (ChannelService.getActive(sp).isPresent() && sp.tickCount % 5 == 0) {
+        if (sp.tickCount % 5 == 0) {
             MysticNetwork.syncDrainToClient(sp);
         }
 
@@ -252,7 +252,7 @@ public class VampireEventHandler {
         if (entity.tickCount % BloodBalance.bloodRegenIntervalTicks() != 0) return;
 
         float old = data.getCurrentBlood();
-        data.regenerate(BloodBalance.bloodRegenRate());
+        data.regenerate(data.getMaxBlood() * BloodBalance.bloodRegenFraction());
         entity.setData(MysticAttachments.ENTITY_BLOOD, data);
         float gained = data.getCurrentBlood() - old;
 

@@ -8,7 +8,7 @@ public final class BloodBalance {
     private BloodBalance() {}
 
     public static float maxBloodForEntity(LivingEntity entity) {
-        return Math.max(1.0f, entity.getMaxHealth() / 2.0f);
+        return Math.max(1.0f, entity.getMaxHealth());
     }
 
     public static float drainAmountPerInterval() {
@@ -19,8 +19,9 @@ public final class BloodBalance {
         return MysticConfig.ENTITY_EXSANGUINATION_DAMAGE.get().floatValue();
     }
 
-    public static float bloodRegenRate() {
-        return MysticConfig.ENTITY_BLOOD_REGEN_RATE.get().floatValue();
+    // Fração do maxBlood a regenerar por intervalo (ex: 0.05 = 5%)
+    public static float bloodRegenFraction() {
+        return MysticConfig.ENTITY_BLOOD_REGEN_FRACTION.get().floatValue();
     }
 
     public static int bloodRegenIntervalTicks() {

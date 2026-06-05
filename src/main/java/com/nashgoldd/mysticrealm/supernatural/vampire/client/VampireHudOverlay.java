@@ -76,8 +76,8 @@ public final class VampireHudOverlay {
             g.text(font, "Sunlight burning!", 10, 34, 0xFFFF8800, true);
         }
 
-        // Barra de sangue da entidade alvo durante drenagem
-        if (ClientDrainState.isDraining && ClientDrainState.targetBloodMax > 0f) {
+        // Barra de sangue da entidade alvo (hover ou drenagem ativa)
+        if (ClientDrainState.targetBloodMax > 0f) {
             int barW = 80;
             int barH = 5;
             int bx = screenW / 2 - barW / 2;
@@ -90,7 +90,10 @@ public final class VampireHudOverlay {
             g.fill(bx - 1, by - 1, bx + barW + 1, by + barH + 1, 0xFF000000);
             g.fill(bx, by, bx + barW, by + barH, 0xFF330000);
             g.fill(bx, by, bx + filled, by + barH, 0xFFAA0000);
-            g.text(font, "Draining blood...", bx, by - 10, 0xFFFF4444, true);
+
+            String label = ClientDrainState.isDraining ? "Draining blood..." : "Blood pool";
+            int labelColor = ClientDrainState.isDraining ? 0xFFFF4444 : 0xFFCC3333;
+            g.text(font, label, bx, by - 10, labelColor, true);
         }
     }
 }
