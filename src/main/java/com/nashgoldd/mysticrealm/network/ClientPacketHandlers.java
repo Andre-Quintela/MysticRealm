@@ -51,10 +51,12 @@ public final class ClientPacketHandlers {
 
     public static void handleSyncDrainState(SyncDrainStatePacket packet, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
-            ClientDrainState.isDraining    = packet.draining();
-            ClientDrainState.ticksElapsed  = packet.ticksElapsed();
-            ClientDrainState.totalTicks    = packet.totalTicks();
-            ClientDrainState.cooldownTicks = packet.cooldownTicks();
+            ClientDrainState.isDraining          = packet.draining();
+            ClientDrainState.ticksElapsed        = packet.ticksElapsed();
+            ClientDrainState.totalTicks          = packet.totalTicks();
+            ClientDrainState.cooldownTicks       = packet.cooldownTicks();
+            ClientDrainState.targetBloodCurrent  = packet.targetBloodCurrent();
+            ClientDrainState.targetBloodMax      = packet.targetBloodMax();
         });
     }
 }

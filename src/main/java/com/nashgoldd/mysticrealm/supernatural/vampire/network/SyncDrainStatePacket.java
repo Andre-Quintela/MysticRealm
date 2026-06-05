@@ -10,7 +10,9 @@ public record SyncDrainStatePacket(
     boolean draining,
     int ticksElapsed,
     int totalTicks,
-    int cooldownTicks
+    int cooldownTicks,
+    float targetBloodCurrent,
+    float targetBloodMax
 ) implements CustomPacketPayload {
 
     public static final Type<SyncDrainStatePacket> TYPE =
@@ -24,7 +26,9 @@ public record SyncDrainStatePacket(
                     buf.readBoolean(),
                     buf.readInt(),
                     buf.readInt(),
-                    buf.readInt()
+                    buf.readInt(),
+                    buf.readFloat(),
+                    buf.readFloat()
                 );
             }
             @Override
@@ -33,6 +37,8 @@ public record SyncDrainStatePacket(
                 buf.writeInt(packet.ticksElapsed());
                 buf.writeInt(packet.totalTicks());
                 buf.writeInt(packet.cooldownTicks());
+                buf.writeFloat(packet.targetBloodCurrent());
+                buf.writeFloat(packet.targetBloodMax());
             }
         };
 

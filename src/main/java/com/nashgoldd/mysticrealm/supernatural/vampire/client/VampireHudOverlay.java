@@ -76,18 +76,21 @@ public final class VampireHudOverlay {
             g.text(font, "Sunlight burning!", 10, 34, 0xFFFF8800, true);
         }
 
-        // Barra de progresso de drenagem de sangue
-        if (ClientDrainState.isDraining && ClientDrainState.totalTicks > 0) {
+        // Barra de sangue da entidade alvo durante drenagem
+        if (ClientDrainState.isDraining && ClientDrainState.targetBloodMax > 0f) {
             int barW = 80;
             int barH = 5;
             int bx = screenW / 2 - barW / 2;
             int by = screenH - 60;
 
+            float ratio = ClientDrainState.targetBloodCurrent / ClientDrainState.targetBloodMax;
+            ratio = Math.max(0f, Math.min(1f, ratio));
+            int filled = (int)(barW * ratio);
+
             g.fill(bx - 1, by - 1, bx + barW + 1, by + barH + 1, 0xFF000000);
             g.fill(bx, by, bx + barW, by + barH, 0xFF330000);
-            int filled = barW * ClientDrainState.ticksElapsed / ClientDrainState.totalTicks;
             g.fill(bx, by, bx + filled, by + barH, 0xFFAA0000);
-            g.text(font, "Draining...", bx, by - 10, 0xFFFF4444, true);
+            g.text(font, "Draining blood...", bx, by - 10, 0xFFFF4444, true);
         }
     }
 }

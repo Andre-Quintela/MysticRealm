@@ -4,13 +4,16 @@ import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelState;
+import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncDrainStatePacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -79,14 +82,29 @@ public final class MysticNetwork {
         SyncDrainStatePacket packet;
         if (active.isPresent()) {
             ChannelState state = active.get();
+
+            float bloodCurrent = 0f;
+            float bloodMax = 0f;
+            ServerLevel sl = (ServerLevel) player.level();
+            var target = sl.getEntity(state.targetEntityId);
+            if (target instanceof LivingEntity le && le.hasData(MysticAttachments.ENTITY_BLOOD)) {
+                EntityBloodData bd = le.getData(MysticAttachments.ENTITY_BLOOD);
+                if (bd.isInitialized()) {
+                    bloodCurrent = bd.getCurrentBlood();
+                    bloodMax = bd.getMaxBlood();
+                }
+            }
+
             packet = new SyncDrainStatePacket(
                 true,
                 state.ticksElapsed,
                 state.action.getDurationTicks(),
-                cooldown
+                cooldown,
+                bloodCurrent,
+                bloodMax
             );
         } else {
-            packet = new SyncDrainStatePacket(false, 0, BloodDrainAction.INSTANCE.getDurationTicks(), cooldown);
+            packet = new SyncDrainStatePacket(false, 0, BloodDrainAction.INSTANCE.getDurationTicks(), cooldown, 0f, 0f);
         }
 
         PacketDistributor.sendToPlayer(player, packet);
