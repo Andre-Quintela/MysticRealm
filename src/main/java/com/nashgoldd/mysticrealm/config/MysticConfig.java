@@ -23,6 +23,13 @@ public final class MysticConfig {
     public static final ModConfigSpec.DoubleValue VAMPIRE_MINIMUM_HEALTH;
     public static final ModConfigSpec.IntValue VAMPIRE_NEAR_DEATH_DEBUFF_DURATION;
 
+    // ── Pool de sangue das entidades ──────────────────────────────────────────
+
+    public static final ModConfigSpec.DoubleValue ENTITY_BLOOD_REGEN_RATE;
+    public static final ModConfigSpec.IntValue    ENTITY_BLOOD_REGEN_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue ENTITY_EXSANGUINATION_DAMAGE;
+    public static final ModConfigSpec.DoubleValue BLOOD_DRAIN_AMOUNT_PER_INTERVAL;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -75,6 +82,22 @@ public final class MysticConfig {
         VAMPIRE_NEAR_DEATH_DEBUFF_DURATION = BUILDER
             .comment("Duração dos debuffs de quase-morte em ticks (600 = 30 segundos)")
             .defineInRange("nearDeathDebuffDuration", 600, 20, Integer.MAX_VALUE);
+
+        ENTITY_BLOOD_REGEN_RATE = BUILDER
+            .comment("Sangue regenerado por intervalo de regen (padrão: 1.0)")
+            .defineInRange("entityBloodRegenRate", 1.0, 0.0, Double.MAX_VALUE);
+
+        ENTITY_BLOOD_REGEN_INTERVAL_TICKS = BUILDER
+            .comment("Ticks entre regenerações de sangue das entidades (padrão: 400 = 20s)")
+            .defineInRange("entityBloodRegenIntervalTicks", 400, 1, Integer.MAX_VALUE);
+
+        ENTITY_EXSANGUINATION_DAMAGE = BUILDER
+            .comment("Dano por intervalo de drenagem quando o pool de sangue da entidade está vazio (padrão: 1.0)")
+            .defineInRange("exsanguinationDamage", 1.0, 0.0, Double.MAX_VALUE);
+
+        BLOOD_DRAIN_AMOUNT_PER_INTERVAL = BUILDER
+            .comment("Sangue drenado da entidade por intervalo de 5 ticks (padrão: 0.5)")
+            .defineInRange("bloodDrainAmountPerInterval", 0.5, 0.0, Double.MAX_VALUE);
 
         BUILDER.pop();
 

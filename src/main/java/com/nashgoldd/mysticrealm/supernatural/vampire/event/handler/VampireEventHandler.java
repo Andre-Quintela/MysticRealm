@@ -6,7 +6,12 @@ import com.nashgoldd.mysticrealm.network.MysticDamageTypes;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
+import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
+import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodPoolChangedEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodRegeneratedEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.VampireNearDeathEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.registry.VampireWeaknessRegistry;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
@@ -26,10 +31,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 public class VampireEventHandler {
@@ -233,9 +240,35 @@ public class VampireEventHandler {
     }
 
     @SubscribeEvent
+    public void onEntityTick(EntityTickEvent.Post event) {
+        if (!(event.getEntity() instanceof LivingEntity entity)) return;
+        if (entity.level().isClientSide()) return;
+        if (entity instanceof Player) return;
+        if (!entity.hasData(MysticAttachments.ENTITY_BLOOD)) return;
+
+        EntityBloodData data = entity.getData(MysticAttachments.ENTITY_BLOOD);
+        if (!data.isInitialized() || data.isFull()) return;
+
+        if (entity.tickCount % BloodBalance.bloodRegenIntervalTicks() != 0) return;
+
+        float old = data.getCurrentBlood();
+        data.regenerate(BloodBalance.bloodRegenRate());
+        entity.setData(MysticAttachments.ENTITY_BLOOD, data);
+        float gained = data.getCurrentBlood() - old;
+
+        if (gained > 0f) {
+            NeoForge.EVENT_BUS.post(new BloodRegeneratedEvent(entity, gained, data.getCurrentBlood()));
+            NeoForge.EVENT_BUS.post(new BloodPoolChangedEvent(
+                entity, old, data.getCurrentBlood(), data.getMaxBlood(),
+                BloodPoolChangedEvent.ChangeReason.REGENERATED));
+        }
+    }
+
+    @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         ChannelService.clearOnDisconnect(player);
+        BloodDrainAction.clearAccumulator(player.getUUID());
     }
 
     @SubscribeEvent

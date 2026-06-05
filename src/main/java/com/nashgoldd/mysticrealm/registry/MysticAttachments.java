@@ -2,6 +2,7 @@ package com.nashgoldd.mysticrealm.registry;
 
 import com.nashgoldd.mysticrealm.MysticRealm;
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -28,6 +29,13 @@ public final class MysticAttachments {
             AttachmentType.builder(VampireData::new)
                 .serialize(VampireData.CODEC)
                 .copyOnDeath()
+                .build()
+        );
+
+    public static final Supplier<AttachmentType<EntityBloodData>> ENTITY_BLOOD =
+        ATTACHMENT_TYPES.register("entity_blood", () ->
+            AttachmentType.builder(EntityBloodData::new)
+                .serialize(EntityBloodData.CODEC)
                 .build()
         );
 

@@ -1,11 +1,17 @@
 package com.nashgoldd.mysticrealm.supernatural.vampire.feeding;
 
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
+import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelAction;
+import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainCancelEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainCompleteEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainInterruptedEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainStartEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainTickEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodPoolChangedEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.event.EntityExsanguinatedEvent;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,16 +25,23 @@ import net.minecraft.world.food.FoodData;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public final class BloodDrainAction implements ChannelAction {
 
     public static final BloodDrainAction INSTANCE = new BloodDrainAction();
     public static final String ID = "blood_drain";
 
+    // Acumula food fracionário por vampiro para aplicar de forma contínua
+    private static final Map<UUID, Float> bloodAccumulator = new HashMap<>();
+
     private BloodDrainAction() {}
 
     @Override public String getActionId()   { return ID; }
-    @Override public int getDurationTicks() { return 60; }   // 3 segundos
-    @Override public int getCooldownTicks() { return 100; }  // 5 segundos
+    @Override public int getDurationTicks() { return 60; }
+    @Override public int getCooldownTicks() { return 100; }
 
     @Override
     public boolean isValidTarget(LivingEntity target, ServerPlayer actor) {
@@ -48,32 +61,68 @@ public final class BloodDrainAction implements ChannelAction {
         ServerLevel sl = (ServerLevel) actor.level();
         Vec3 neck = target.getEyePosition().subtract(0, 0.3, 0);
 
-        // Partículas de coração vermelho próximas ao pescoço da vítima
         sl.sendParticles(ParticleTypes.HEART,
             neck.x, neck.y, neck.z, 3, 0.15, 0.1, 0.15, 0.0);
-
         sl.playSound(null, actor.blockPosition(), SoundEvents.WITCH_DRINK,
             SoundSource.PLAYERS, 0.5f, 0.5f);
+
+        // ── Pool de sangue da entidade ────────────────────────────────────────
+        EntityBloodData bloodData = EntityBloodData.getOrInit(target);
+        float oldBlood = bloodData.getCurrentBlood();
+        boolean wasEmpty = bloodData.isEmpty();
+
+        if (bloodData.isEmpty()) {
+            // Exsanguinação: pool esgotado — aplica dano periódico
+            float dmg = BloodBalance.exsanguinationDamage();
+            target.hurtServer(sl, sl.damageSources().playerAttack(actor), dmg);
+        } else {
+            // Drenar do pool da entidade
+            bloodData.drain(BloodBalance.drainAmountPerInterval());
+            target.setData(MysticAttachments.ENTITY_BLOOD, bloodData);
+
+            float newBlood = bloodData.getCurrentBlood();
+
+            NeoForge.EVENT_BUS.post(new BloodPoolChangedEvent(
+                target, oldBlood, newBlood, bloodData.getMaxBlood(),
+                BloodPoolChangedEvent.ChangeReason.DRAINED));
+
+            if (!wasEmpty && bloodData.isEmpty()) {
+                NeoForge.EVENT_BUS.post(new EntityExsanguinatedEvent(target, actor));
+            }
+        }
+
+        // ── Acumulador fracionário de food para o vampiro ─────────────────────
+        UUID uid = actor.getUUID();
+        float accumulated = bloodAccumulator.getOrDefault(uid, 0f) + BloodBalance.foodPerInterval();
+        int toApply = (int) accumulated;
+        bloodAccumulator.put(uid, accumulated - toApply);
+
+        int foodApplied = 0;
+        if (toApply > 0) {
+            FoodData food = actor.getFoodData();
+            food.setFoodLevel(Math.min(20, food.getFoodLevel() + toApply));
+            foodApplied = toApply;
+            MysticNetwork.syncVampireToClient(actor);
+        }
+
+        NeoForge.EVENT_BUS.post(new BloodDrainTickEvent(
+            actor, target,
+            bloodData.isEmpty() ? 0f : BloodBalance.drainAmountPerInterval(),
+            foodApplied, bloodData.isEmpty()));
     }
 
     @Override
     public void onComplete(LivingEntity target, ServerPlayer actor) {
-        // Restaurar sangue do vampiro (+4 food units = +20% sangue)
-        FoodData food = actor.getFoodData();
-        food.setFoodLevel(Math.min(20, food.getFoodLevel() + 4));
+        // Descarta fração remanescente — os intervalos anteriores já cobriram o total
+        bloodAccumulator.remove(actor.getUUID());
 
-        // Consequências para a vítima
-        ServerLevel sl = (ServerLevel) actor.level();
-        if (target instanceof ServerPlayer sp) {
-            sp.hurtServer(sl, sl.damageSources().playerAttack(actor), 2.0f);
-        } else {
-            target.hurt(sl.damageSources().playerAttack(actor), 2.0f);
-        }
+        // Penalidade de Fraqueza na vítima (mantida do sistema original)
         target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 0, false, true));
 
         // Aldeões: penalidade adicional
         if (target.getType() == EntityType.VILLAGER || target.getType() == EntityType.WANDERING_TRADER) {
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 0, false, true));
+            ServerLevel sl = (ServerLevel) actor.level();
             sl.playSound(null, target.blockPosition(), SoundEvents.VILLAGER_HURT,
                 SoundSource.NEUTRAL, 1.0f, 1.0f);
         }
@@ -85,11 +134,18 @@ public final class BloodDrainAction implements ChannelAction {
 
     @Override
     public void onInterrupt(LivingEntity target, ServerPlayer actor, String reason) {
+        // Progresso já foi aplicado tick a tick — não há perda ao interromper
+        bloodAccumulator.remove(actor.getUUID());
+
         if ("cancel".equals(reason)) {
             NeoForge.EVENT_BUS.post(new BloodDrainCancelEvent(actor, target));
         } else {
             NeoForge.EVENT_BUS.post(new BloodDrainInterruptedEvent(actor, target, reason));
         }
         MysticNetwork.syncDrainToClient(actor);
+    }
+
+    public static void clearAccumulator(UUID playerId) {
+        bloodAccumulator.remove(playerId);
     }
 }
