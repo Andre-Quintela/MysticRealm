@@ -5,6 +5,7 @@ import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.network.MysticDamageTypes;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.VampireNearDeathEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.registry.VampireWeaknessRegistry;
@@ -25,6 +26,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -44,6 +46,12 @@ public class VampireEventHandler {
 
         // Manter saturação zero — evita regeneração vanilla interferir com nossa lógica
         sp.getFoodData().setSaturation(0f);
+
+        // Tick do sistema de canalização (drenagem de sangue, etc.)
+        ChannelService.tick(sp);
+        if (ChannelService.getActive(sp).isPresent() && sp.tickCount % 5 == 0) {
+            MysticNetwork.syncDrainToClient(sp);
+        }
 
         tickBloodDrain(sp);
         tickSunlight(sp, data, level);
@@ -101,8 +109,8 @@ public class VampireEventHandler {
         int regenThreshold = MysticConfig.VAMPIRE_REGENERATION_THRESHOLD.get();
         int speedThreshold = MysticConfig.VAMPIRE_SPEED_THRESHOLD.get();
 
-        // Visão noturna — sempre ativa para vampiros
-        ensureEffect(player, MobEffects.NIGHT_VISION, 400, 0);
+        // Visão noturna — threshold 220 evita o piscar dos últimos 200 ticks
+        ensureEffect(player, MobEffects.NIGHT_VISION, 3600, 0, 220);
 
         // Regeneração quando sangue alto
         if (blood >= regenThreshold) {
@@ -164,8 +172,12 @@ public class VampireEventHandler {
     }
 
     private void ensureEffect(Player player, Holder<MobEffect> effect, int minDuration, int amplifier) {
+        ensureEffect(player, effect, minDuration, amplifier, 100);
+    }
+
+    private void ensureEffect(Player player, Holder<MobEffect> effect, int minDuration, int amplifier, int refreshThreshold) {
         MobEffectInstance current = player.getEffect(effect);
-        if (current == null || current.getDuration() < 100) {
+        if (current == null || current.getDuration() < refreshThreshold) {
             player.addEffect(new MobEffectInstance(effect, minDuration, amplifier, true, false));
         }
     }
@@ -208,6 +220,22 @@ public class VampireEventHandler {
         MysticNetwork.syncVampireToClient(player);
 
         MysticRealmLogger.debug("Imortalidade vampírica ativada para {}", player.getName().getString());
+    }
+
+    // Interrompe drenagem ativa quando o vampiro toma dano
+    @SubscribeEvent
+    public void onLivingDamage(LivingDamageEvent.Pre event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (!VampireService.isVampire(player)) return;
+        if (ChannelService.getActive(player).isEmpty()) return;
+        ChannelService.interrupt(player, "damaged");
+        MysticNetwork.syncDrainToClient(player);
+    }
+
+    @SubscribeEvent
+    public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        ChannelService.clearOnDisconnect(player);
     }
 
     @SubscribeEvent

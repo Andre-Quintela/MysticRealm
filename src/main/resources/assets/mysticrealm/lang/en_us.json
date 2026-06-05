@@ -17,5 +17,7 @@
   "mysticrealm.configuration.vampire.nearDeathDebuffDuration": "Near-Death Debuff Duration (ticks)",
   "item.mysticrealm.wooden_stake": "Wooden Stake",
   "item.mysticrealm.blood_vial": "Blood Vial",
-  "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight"
+  "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight",
+  "key.category.mysticrealm.mysticrealm": "Mystic Realm",
+  "key.mysticrealm.drain_blood": "Drain Blood"
 }

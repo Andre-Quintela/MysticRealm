@@ -30,7 +30,7 @@ public final class MysticConfig {
 
         MAX_LEVEL = BUILDER
             .comment("Nível máximo que um jogador sobrenatural pode atingir")
-            .defineInRange("maxLevel", 100, 1, Integer.MAX_VALUE);
+            .defineInRange("maxLevel", 10, 1, Integer.MAX_VALUE);
 
         DEBUG_LOGGING = BUILDER
             .comment("Ativar mensagens de debug no console")

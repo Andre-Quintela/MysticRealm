@@ -3,6 +3,8 @@ package com.nashgoldd.mysticrealm.network;
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.client.ClientDrainState;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncDrainStatePacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPacket;
 import com.nashgoldd.mysticrealm.util.MysticRealmLogger;
 import net.minecraft.client.Minecraft;
@@ -44,6 +46,15 @@ public final class ClientPacketHandlers {
 
             MysticRealmLogger.debug("Dados vampíricos sincronizados: transformed={}, sunlight={}, nearDeath={}",
                 packet.transformed(), packet.sunlightBurning(), packet.nearDeath());
+        });
+    }
+
+    public static void handleSyncDrainState(SyncDrainStatePacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            ClientDrainState.isDraining    = packet.draining();
+            ClientDrainState.ticksElapsed  = packet.ticksElapsed();
+            ClientDrainState.totalTicks    = packet.totalTicks();
+            ClientDrainState.cooldownTicks = packet.cooldownTicks();
         });
     }
 }

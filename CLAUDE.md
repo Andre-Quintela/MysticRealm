@@ -33,25 +33,55 @@ Fase 2 — Sistema de Vampirismo:
 - RaceResource genérico (ResourceType.BLOOD/RAGE/MANA + RaceResource com MapCodec)
 - VampireData attachment (blood como RaceResource, transformed, sunlightBurning, nearDeath)
 - VampireService (transform, cure, isVampire, getData)
-- Dano solar escalonado por nível (level 1 = morte instantânea, level max = 10s de sobrevivência)
+- Dano solar escalonado por nível (level 1 = morte instantânea, level max = sobrevivência configurável)
 - Efeitos passivos por nível de sangue (Night Vision sempre, Regeneration ≥75%, Speed ≥50%)
 - Penalidades por fome (Weakness/Slowness I e II conforme sangue baixa)
 - Sistema de imortalidade (cancela morte exceto por fraquezas sobrenaturais)
 - VampireWeaknessRegistry (isLethalToVampire: luz solar + Wooden Stake)
 - Eventos vampíricos (VampireTransformEvent, VampireCuredEvent, BloodLevelChangedEvent, VampireNearDeathEvent)
-- SyncVampireDataPacket (bloodLevel, maxBlood, transformed, sunlightBurning, nearDeath)
+- SyncVampireDataPacket (transformed, sunlightBurning, nearDeath)
 - Items: WoodenStakeItem + BloodVialItem (+25 sangue ao consumir)
-- VampireHudOverlay (Blood: X/100, mensagem near-death, aviso de luz solar)
+- VampireHudOverlay (ícones de gota de sangue, mensagem near-death, aviso de luz solar)
 - Comandos: /mystic vampire transform|cure, /mystic blood set|add|info
 - Config [vampire]: 10 valores configuráveis incluindo sunlightMaxSurvivalSeconds
+
+Fase 3 — Sistema de Alimentação Vampírica (Drenagem de Sangue):
+- ChannelAction (interface genérica reutilizável — lobisomens/bruxaria futuramente)
+- ChannelState (estado transiente: action, targetEntityId, ticksElapsed)
+- ChannelService (Map<UUID,ChannelState> + Map<UUID,Map<String,Integer>> cooldowns)
+  - start() / cancel() / interrupt(reason) / tick() / getActive() / getCooldown() / clearOnDisconnect()
+  - tick() valida: alvo vivo, distância ≤2.5, dot product ≥0.85 (vampiro olhando para alvo)
+- BloodDrainAction (implements ChannelAction — singleton INSTANCE)
+  - 60 ticks (3s) de duração, 100 ticks (5s) de cooldown
+  - onTick(): a cada 5 ticks — partículas HEART no pescoço + SoundEvents.WITCH_DRINK
+  - onComplete(): +4 food units vampiro, 2 dano + Weakness I (200t) vítima,
+    aldeões ganham Slowness I + som de sofrimento
+  - Dispara BloodDrainStartEvent / BloodDrainCompleteEvent / BloodDrainCancelEvent / BloodDrainInterruptedEvent
+- DrainableEntityRegistry (instanceof Animal para animais, EntityType para aldeões, Player com guards)
+  - Inválidos: vampiros, criativos, espectadores, golems, armor stands
+- 3 pacotes de rede:
+  - RequestBloodDrainPacket (C→S, int entityId)
+  - CancelBloodDrainPacket (C→S, sem campos)
+  - SyncDrainStatePacket (S→C, boolean draining, int ticksElapsed, totalTicks, cooldownTicks)
+- ServerPacketHandlers (handleRequestDrain + handleCancelDrain)
+- ClientDrainState (campos estáticos: isDraining, ticksElapsed, totalTicks, cooldownTicks)
+- VampireKeyBindings: tecla V — categoria "Mystic Realm", KeyMapping.Category(Identifier)
+  - Registrado via modEventBus.addListener() em MysticRealmClient
+- VampireClientInputHandler: ClientTickEvent.Post — detecta crosshairPickEntity, envia pacotes
+- VampireHudOverlay: barra de progresso vermelha na base da tela durante drenagem ativa
+- VampireEventHandler: ChannelService.tick() + sync a cada 5t + LivingDamageEvent.Pre interrupt + PlayerLoggedOutEvent cleanup
+
+Config [geral]:
+- maxLevel: padrão 10 (válido para todas as raças)
 
 ---
 
 ESTRUTURA DE PACOTES:
 
 src/main/java/com/nashgoldd/mysticrealm/
-├── MysticRealm.java                         ← @Mod principal
-├── attachment/PlayerSupernaturalData.java   ← race + level + xp
+├── MysticRealm.java
+├── MysticRealmClient.java                      ← @Mod(dist=CLIENT) + registro de keybinds
+├── attachment/PlayerSupernaturalData.java      ← race + level + xp
 ├── command/MysticCommands.java
 ├── config/MysticConfig.java
 ├── event/
@@ -60,30 +90,52 @@ src/main/java/com/nashgoldd/mysticrealm/
 │   └── ExperienceChangedEvent.java
 ├── event/handler/PlayerEventHandler.java
 ├── network/
-│   ├── MysticNetwork.java
+│   ├── MysticNetwork.java                      ← playToClient + playToServer + syncDrainToClient()
 │   ├── MysticDamageTypes.java
 │   ├── SyncPlayerDataPacket.java
-│   └── ClientPacketHandlers.java
+│   ├── ClientPacketHandlers.java               ← handleSyncVampireData + handleSyncDrainState
+│   └── ServerPacketHandlers.java               ← handleRequestDrain + handleCancelDrain
 ├── registry/
-│   ├── MysticAttachments.java              ← SUPERNATURAL_DATA + VAMPIRE_DATA
-│   └── MysticItems.java                    ← DeferredRegister.Items (createItems)
+│   ├── MysticAttachments.java                  ← SUPERNATURAL_DATA + VAMPIRE_DATA
+│   └── MysticItems.java
 ├── supernatural/
 │   ├── race/RaceType.java
-│   └── resource/
-│       ├── ResourceType.java               ← BLOOD, RAGE, MANA
-│       └── RaceResource.java               ← genérico com MapCodec
+│   ├── resource/
+│   │   ├── ResourceType.java                   ← BLOOD, RAGE, MANA
+│   │   └── RaceResource.java
+│   └── channeling/                             ← GENÉRICO (reutilizável)
+│       ├── ChannelAction.java
+│       ├── ChannelState.java
+│       └── ChannelService.java
 └── supernatural/vampire/
     ├── VampireWeaknessType.java
     ├── attachment/VampireData.java
-    ├── client/VampireHudOverlay.java
-    ├── event/BloodLevelChangedEvent.java
-    ├── event/VampireCuredEvent.java
-    ├── event/VampireNearDeathEvent.java
-    ├── event/VampireTransformEvent.java
+    ├── client/
+    │   ├── VampireHudOverlay.java
+    │   ├── VampireKeyBindings.java              ← KeyMapping.Category(Identifier) + register()
+    │   ├── VampireClientInputHandler.java       ← ClientTickEvent, ClientPacketDistributor
+    │   └── ClientDrainState.java               ← campos estáticos de estado cliente
+    ├── event/
+    │   ├── BloodLevelChangedEvent.java
+    │   ├── BloodDrainStartEvent.java
+    │   ├── BloodDrainCompleteEvent.java
+    │   ├── BloodDrainCancelEvent.java
+    │   ├── BloodDrainInterruptedEvent.java      ← campo extra: String reason
+    │   ├── VampireCuredEvent.java
+    │   ├── VampireNearDeathEvent.java
+    │   └── VampireTransformEvent.java
     ├── event/handler/VampireEventHandler.java
-    ├── item/BloodVialItem.java
-    ├── item/WoodenStakeItem.java
-    ├── network/SyncVampireDataPacket.java
+    ├── feeding/
+    │   ├── BloodDrainAction.java               ← implements ChannelAction (singleton)
+    │   └── DrainableEntityRegistry.java
+    ├── item/
+    │   ├── BloodVialItem.java
+    │   └── WoodenStakeItem.java
+    ├── network/
+    │   ├── SyncVampireDataPacket.java
+    │   ├── RequestBloodDrainPacket.java
+    │   ├── CancelBloodDrainPacket.java
+    │   └── SyncDrainStatePacket.java
     ├── registry/VampireWeaknessRegistry.java
     └── service/VampireService.java
 
@@ -100,8 +152,10 @@ ATTACHMENTS:
 - player.getData(MysticAttachments.SUPERNATURAL_DATA)  ← Supplier<AttachmentType<T>>
 
 REDE:
-- RegisterPayloadHandlersEvent → event.registrar("1.0").playToClient(TYPE, STREAM_CODEC, handler)
-- PacketDistributor.sendToPlayer(player, payload)
+- RegisterPayloadHandlersEvent → event.registrar("1.0").playToClient/playToServer(TYPE, STREAM_CODEC, handler)
+- PacketDistributor.sendToPlayer(player, payload)          ← servidor → cliente
+- ClientPacketDistributor.sendToServer(payload)            ← cliente → servidor
+  (net.neoforged.neoforge.client.network.ClientPacketDistributor)
 - Handlers no cliente: ctx.enqueueWork(() -> { ... })
 
 PERMISSÕES:
@@ -120,20 +174,40 @@ EFEITOS:
 VERIFICAÇÕES DE MUNDO:
 - level.isBrightOutside()  ← substitui isNight() (MC 26.x)
 - level.dimensionType().hasSkyLight() para verificar dimensão com céu
+- ServerLevel via cast: ((ServerLevel) player.level()) — NÃO player.serverLevel() (não existe)
 
 RENDERIZAÇÃO (HUD):
 - GuiGraphicsExtractor (não GuiGraphics — renomeado no MC 26.x)
 - Método: g.text(Font, String, int x, int y, int color, boolean dropShadow)
 - Cor em formato ARGB obrigatório: 0xFFAA0000 (não 0xAA0000 — alpha 0 = invisível)
 - event.getGuiGraphics() retorna GuiGraphicsExtractor
+- Sprites GUI: blitSprite(RenderPipelines.GUI_TEXTURED, spriteId, x, y, w, h)
+  - spriteId via Identifier.fromNamespaceAndPath(MODID, "nome") — sem prefixo de pasta
+  - Arquivos em textures/gui/sprites/nome.png
 
 ITENS:
-- DeferredRegister.createItems(MODID)  ← não DeferredRegister.create(Registries.ITEM, ...)
-- ITEMS.registerItem("id", MyItem::new, p -> p.stacksTo(1))  ← terceiro arg é UnaryOperator<Properties>
+- DeferredRegister.createItems(MODID)
+- ITEMS.registerItem("id", MyItem::new, p -> p.stacksTo(1))
+
+SONS:
+- SoundEvents com tipo SoundEvent: usar diretamente em playSound()
+- SoundEvents com tipo Holder.Reference<SoundEvent>: usar .value() ou trocar por SoundEvent puro
+- Ex: SoundEvents.WITCH_DRINK (SoundEvent) ✓ | SoundEvents.HONEY_DRINK (Holder) — precisa .value()
+
+KEYBINDS:
+- KeyMapping.Category é um record: new KeyMapping.Category(Identifier)
+- Construtor NeoForge: new KeyMapping(String, IKeyConflictContext, InputConstants.Type, int, KeyMapping.Category)
+- Registrar categoria: event.registerCategory(category) via RegisterKeyMappingsEvent
+- Chave de tradução da categoria: id.toLanguageKey("key.category") → "key.category.{namespace}.{path}"
+  ex: Identifier("mysticrealm","mysticrealm") → "key.category.mysticrealm.mysticrealm" (sem 's' em category)
+- RegisterKeyMappingsEvent é MOD bus — registrar via modEventBus.addListener() no @Mod(dist=CLIENT)
+- @Mod(dist=CLIENT) pode receber IEventBus no construtor igual ao @Mod principal
 
 EVENTOS CLIENT-ONLY:
-- @EventBusSubscriber(modid = MODID, value = Dist.CLIENT) para classes cliente
+- @EventBusSubscriber(modid = MODID, value = Dist.CLIENT) para NeoForge bus (jogo)
+- @Mod(dist=CLIENT) + modEventBus.addListener() para MOD bus (lifecycle/registro)
 - RenderGuiEvent.Post para HUD overlays
+- ClientTickEvent.Post para tick de input no cliente
 
 ---
 
@@ -145,5 +219,7 @@ PROBLEMAS CONHECIDOS DO IDE (VS CODE):
 ---
 
 PRÓXIMAS FASES PLANEJADAS:
-- Fase 3: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
-- Fase 4: Bruxaria (RaceResource MANA, feitiços, crafting sobrenatural)
+- Fase 4: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
+  - Reutilizar ChannelAction para habilidades ativas do lobisomem
+- Fase 5: Bruxaria (RaceResource MANA, feitiços, crafting sobrenatural)
+  - Reutilizar ChannelAction para lançamento de feitiços
