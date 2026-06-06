@@ -18,7 +18,7 @@ public final class MysticAttachments {
 
     public static final Supplier<AttachmentType<PlayerSupernaturalData>> SUPERNATURAL_DATA =
         ATTACHMENT_TYPES.register("supernatural_data", () ->
-            AttachmentType.builder(PlayerSupernaturalData::new)
+            AttachmentType.builder(() -> new PlayerSupernaturalData())
                 .serialize(PlayerSupernaturalData.CODEC)
                 .copyOnDeath()
                 .build()

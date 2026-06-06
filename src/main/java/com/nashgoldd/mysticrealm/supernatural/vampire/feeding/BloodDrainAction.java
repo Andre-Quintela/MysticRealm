@@ -8,10 +8,12 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainCancelEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainCompleteEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainInterruptedEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.essence.BloodEssenceRegistry;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainStartEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainTickEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodPoolChangedEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.EntityExsanguinatedEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireProgressionService;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -36,6 +38,9 @@ public final class BloodDrainAction implements ChannelAction {
 
     // Acumula food fracionário por vampiro para aplicar de forma contínua
     private static final Map<UUID, Float> bloodAccumulator = new HashMap<>();
+
+    // Acumula essência fracionária por vampiro — necessário pois base*fraction é < 1 para animais pequenos
+    private static final Map<UUID, Double> essenceAccumulator = new HashMap<>();
 
     private BloodDrainAction() {}
 
@@ -77,8 +82,22 @@ public final class BloodDrainAction implements ChannelAction {
             target.hurtServer(sl, sl.damageSources().playerAttack(actor), dmg);
         } else {
             // Drenar do pool da entidade
-            bloodData.drain(BloodBalance.drainAmountPerInterval());
+            float actuallyDrained = bloodData.drain(BloodBalance.drainAmountPerInterval());
             target.setData(MysticAttachments.ENTITY_BLOOD, bloodData);
+
+            // Essência proporcional ao sangue drenado — acumulada para evitar arredondamento para zero
+            float maxBlood = bloodData.getMaxBlood();
+            if (maxBlood > 0 && actuallyDrained > 0) {
+                float fraction = actuallyDrained / maxBlood;
+                double essenceFrac = BloodEssenceRegistry.getBaseEssence(target) * fraction;
+                UUID uid = actor.getUUID();
+                double accumulated = essenceAccumulator.getOrDefault(uid, 0.0) + essenceFrac;
+                long toGrant = (long) accumulated;
+                essenceAccumulator.put(uid, accumulated - toGrant);
+                if (toGrant > 0) {
+                    VampireProgressionService.grantEssence(actor, toGrant, target);
+                }
+            }
 
             float newBlood = bloodData.getCurrentBlood();
 
@@ -115,6 +134,7 @@ public final class BloodDrainAction implements ChannelAction {
     public void onComplete(LivingEntity target, ServerPlayer actor) {
         // Descarta fração remanescente — os intervalos anteriores já cobriram o total
         bloodAccumulator.remove(actor.getUUID());
+        essenceAccumulator.remove(actor.getUUID());
 
         // Penalidade de Fraqueza na vítima (mantida do sistema original)
         target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 0, false, true));
@@ -136,6 +156,7 @@ public final class BloodDrainAction implements ChannelAction {
     public void onInterrupt(LivingEntity target, ServerPlayer actor, String reason) {
         // Progresso já foi aplicado tick a tick — não há perda ao interromper
         bloodAccumulator.remove(actor.getUUID());
+        essenceAccumulator.remove(actor.getUUID());
 
         if ("cancel".equals(reason)) {
             NeoForge.EVENT_BUS.post(new BloodDrainCancelEvent(actor, target));
@@ -147,5 +168,6 @@ public final class BloodDrainAction implements ChannelAction {
 
     public static void clearAccumulator(UUID playerId) {
         bloodAccumulator.remove(playerId);
+        essenceAccumulator.remove(playerId);
     }
 }

@@ -1,10 +1,10 @@
 package com.nashgoldd.mysticrealm.supernatural.vampire.event.handler;
 
-import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.network.MysticDamageTypes;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireRank;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
@@ -13,6 +13,7 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodPoolChangedEven
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodRegeneratedEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.VampireNearDeathEvent;
+import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireProgressionService;
 import com.nashgoldd.mysticrealm.supernatural.vampire.registry.VampireWeaknessRegistry;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import com.nashgoldd.mysticrealm.util.MysticRealmLogger;
@@ -60,6 +61,7 @@ public class VampireEventHandler {
             MysticNetwork.syncDrainToClient(sp);
         }
 
+        VampireProgressionService.tickAge(sp);
         tickBloodDrain(sp);
         tickSunlight(sp, data, level);
         tickPassiveEffects(sp);
@@ -155,16 +157,15 @@ public class VampireEventHandler {
     }
 
     private float calculateSunlightDamage(ServerPlayer player) {
-        PlayerSupernaturalData sData = player.getData(MysticAttachments.SUPERNATURAL_DATA);
-        int vampireLevel = sData.getLevel();
-        int maxLevel = MysticConfig.MAX_LEVEL.get();
+        VampireRank rank = VampireService.getData(player).getRank();
         float maxHealth = player.getMaxHealth();
+        int maxOrdinal = VampireRank.values().length - 1; // 6 (BLOOD_SOVEREIGN)
 
-        if (vampireLevel <= 1 || maxLevel <= 1) {
-            return maxHealth * 10f;
+        if (rank.ordinal() == 0) {
+            return maxHealth * 10f; // NEWBORN = morte instantânea
         }
 
-        float t = (float)(vampireLevel - 1) / (maxLevel - 1);
+        float t = (float) rank.ordinal() / maxOrdinal;
         float maxSurvivalSeconds = MysticConfig.VAMPIRE_SUNLIGHT_MAX_SURVIVAL_SECONDS.get().floatValue();
         float survivalSeconds = 0.05f + t * (maxSurvivalSeconds - 0.05f);
         return maxHealth / survivalSeconds;
@@ -276,17 +277,20 @@ public class VampireEventHandler {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         MysticNetwork.syncToClient(player);
         MysticNetwork.syncVampireToClient(player);
+        MysticNetwork.syncVampireProgressionToClient(player);
     }
 
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         MysticNetwork.syncVampireToClient(player);
+        MysticNetwork.syncVampireProgressionToClient(player);
     }
 
     @SubscribeEvent
     public void onDimensionChange(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         MysticNetwork.syncVampireToClient(player);
+        MysticNetwork.syncVampireProgressionToClient(player);
     }
 }

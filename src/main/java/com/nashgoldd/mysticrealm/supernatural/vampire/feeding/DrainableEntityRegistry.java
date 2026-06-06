@@ -11,9 +11,14 @@ import java.util.Set;
 public final class DrainableEntityRegistry {
 
     // EntityType constants são estáveis entre versões; evita problemas com renomeação de classes
-    private static final Set<EntityType<?>> VALID_NPC_TYPES = Set.of(
+    private static final Set<EntityType<?>> VALID_HUMANOID_TYPES = Set.of(
         EntityType.VILLAGER,
-        EntityType.WANDERING_TRADER
+        EntityType.WANDERING_TRADER,
+        EntityType.PILLAGER,
+        EntityType.VINDICATOR,
+        EntityType.EVOKER,
+        EntityType.ILLUSIONER,
+        EntityType.WITCH
     );
 
     private DrainableEntityRegistry() {}
@@ -31,7 +36,7 @@ public final class DrainableEntityRegistry {
         // Animal abrange vaca, porco, ovelha, galinha, cavalo, etc.
         if (target instanceof Animal) return true;
 
-        // Aldeões e comerciantes errantes por tipo (não extendem Animal)
-        return VALID_NPC_TYPES.contains(target.getType());
+        // Humanóides: aldeões, comerciantes e raid mobs
+        return VALID_HUMANOID_TYPES.contains(target.getType());
     }
 }

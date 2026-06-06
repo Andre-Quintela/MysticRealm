@@ -12,6 +12,7 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPa
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncDrainStatePacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPacket;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireProgressionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -49,6 +50,11 @@ public final class MysticNetwork {
             SyncDrainStatePacket.STREAM_CODEC,
             ClientPacketHandlers::handleSyncDrainState
         );
+        registrar.playToClient(
+            SyncVampireProgressionPacket.TYPE,
+            SyncVampireProgressionPacket.STREAM_CODEC,
+            ClientPacketHandlers::handleSyncVampireProgression
+        );
 
         // Cliente → Servidor
         registrar.playToServer(
@@ -65,11 +71,7 @@ public final class MysticNetwork {
 
     public static void syncToClient(ServerPlayer player) {
         PlayerSupernaturalData data = player.getData(MysticAttachments.SUPERNATURAL_DATA);
-        PacketDistributor.sendToPlayer(player, new SyncPlayerDataPacket(
-            data.getRace(),
-            data.getLevel(),
-            data.getExperience()
-        ));
+        PacketDistributor.sendToPlayer(player, new SyncPlayerDataPacket(data.getRace()));
     }
 
     public static void syncVampireToClient(ServerPlayer player) {
@@ -78,6 +80,16 @@ public final class MysticNetwork {
             data.isTransformed(),
             data.isSunlightBurning(),
             data.isNearDeath()
+        ));
+    }
+
+    public static void syncVampireProgressionToClient(ServerPlayer player) {
+        VampireData data = player.getData(MysticAttachments.VAMPIRE_DATA);
+        PacketDistributor.sendToPlayer(player, new SyncVampireProgressionPacket(
+            data.getRank(),
+            data.getBloodEssence(),
+            data.getVampireAgeTicks(),
+            data.getAscensionCount()
         ));
     }
 

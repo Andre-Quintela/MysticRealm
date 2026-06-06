@@ -6,6 +6,7 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.ClientDrainState;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncDrainStatePacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPacket;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireProgressionPacket;
 import com.nashgoldd.mysticrealm.util.MysticRealmLogger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -26,11 +27,8 @@ public final class ClientPacketHandlers {
 
             PlayerSupernaturalData data = player.getData(MysticAttachments.SUPERNATURAL_DATA);
             data.setRaceRaw(packet.race());
-            data.setLevelRaw(packet.level());
-            data.setExperienceRaw(packet.experience());
 
-            MysticRealmLogger.debug("Dados sobrenaturais sincronizados: race={}, level={}, xp={}",
-                packet.race(), packet.level(), packet.experience());
+            MysticRealmLogger.debug("Dados sobrenaturais sincronizados: race={}", packet.race());
         });
     }
 
@@ -46,6 +44,22 @@ public final class ClientPacketHandlers {
 
             MysticRealmLogger.debug("Dados vampíricos sincronizados: transformed={}, sunlight={}, nearDeath={}",
                 packet.transformed(), packet.sunlightBurning(), packet.nearDeath());
+        });
+    }
+
+    public static void handleSyncVampireProgression(SyncVampireProgressionPacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            Player player = Minecraft.getInstance().player;
+            if (player == null) return;
+
+            VampireData data = player.getData(MysticAttachments.VAMPIRE_DATA);
+            data.setRankRaw(packet.rank());
+            data.setBloodEssenceRaw(packet.bloodEssence());
+            data.setVampireAgeTicksRaw(packet.vampireAgeTicks());
+            data.setAscensionCountRaw(packet.ascensionCount());
+
+            MysticRealmLogger.debug("Progressão vampírica sincronizada: rank={}, essence={}, ageTicks={}, ascensions={}",
+                packet.rank(), packet.bloodEssence(), packet.vampireAgeTicks(), packet.ascensionCount());
         });
     }
 

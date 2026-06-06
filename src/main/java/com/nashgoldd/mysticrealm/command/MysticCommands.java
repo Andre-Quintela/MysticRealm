@@ -2,14 +2,16 @@ package com.nashgoldd.mysticrealm.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.race.RaceType;
+import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireProgressionService;
+import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireRank;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -35,15 +37,6 @@ public final class MysticCommands {
                         })
                         .executes(ctx -> cmdSetRace(ctx.getSource(), StringArgumentType.getString(ctx, "race")))))
 
-                // ── Progressão ───────────────────────────────────────────────
-                .then(Commands.literal("level")
-                    .then(Commands.argument("value", IntegerArgumentType.integer(1))
-                        .executes(ctx -> cmdSetLevel(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "value")))))
-
-                .then(Commands.literal("xp")
-                    .then(Commands.argument("value", LongArgumentType.longArg(0))
-                        .executes(ctx -> cmdSetXp(ctx.getSource(), LongArgumentType.getLong(ctx, "value")))))
-
                 .then(Commands.literal("info")
                     .executes(ctx -> cmdInfo(ctx.getSource())))
 
@@ -63,11 +56,13 @@ public final class MysticCommands {
                     .then(Commands.literal("transform")
                         .executes(ctx -> cmdVampireTransform(ctx.getSource())))
                     .then(Commands.literal("cure")
-                        .executes(ctx -> cmdVampireCure(ctx.getSource()))))
+                        .executes(ctx -> cmdVampireCure(ctx.getSource())))
+                    .then(Commands.literal("ascend")
+                        .executes(ctx -> cmdVampireAscend(ctx.getSource()))))
         );
     }
 
-    // ── Handlers de raça / progressão ────────────────────────────────────────
+    // ── Handlers de raça ─────────────────────────────────────────────────────
 
     private static int cmdSetRace(CommandSourceStack source, String raceName)
             throws CommandSyntaxException {
@@ -85,33 +80,11 @@ public final class MysticCommands {
         return 1;
     }
 
-    private static int cmdSetLevel(CommandSourceStack source, int level)
-            throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        PlayerSupernaturalData data = player.getData(MysticAttachments.SUPERNATURAL_DATA);
-        data.setLevel(level, player);
-        MysticNetwork.syncToClient(player);
-        source.sendSuccess(() -> Component.literal("Level changed to " + data.getLevel()), false);
-        return 1;
-    }
-
-    private static int cmdSetXp(CommandSourceStack source, long xp)
-            throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        PlayerSupernaturalData data = player.getData(MysticAttachments.SUPERNATURAL_DATA);
-        data.setExperience(xp, player);
-        MysticNetwork.syncToClient(player);
-        source.sendSuccess(() -> Component.literal("Experience changed to " + data.getExperience()), false);
-        return 1;
-    }
-
     private static int cmdInfo(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         PlayerSupernaturalData data = player.getData(MysticAttachments.SUPERNATURAL_DATA);
         source.sendSuccess(() -> Component.literal(
-            "§6[MysticRealm]§r Race: §b" + data.getRace().name() +
-            " §r| Level: §a" + data.getLevel() +
-            " §r| XP: §e" + data.getExperience()
+            "§6[MysticRealm]§r Race: §b" + data.getRace().name()
         ), false);
         return 1;
     }
@@ -157,6 +130,8 @@ public final class MysticCommands {
         int blood = player.getFoodData().getFoodLevel() * 5;
         source.sendSuccess(() -> Component.literal(
             "§6[Vampiro]§r Blood: §4" + blood + "§r/100" +
+            " | Rank: §5" + data.getRank().displayName() +
+            " | Essence: §e" + data.getBloodEssence() +
             " | Transformed: " + data.isTransformed() +
             " | Sunlight: " + data.isSunlightBurning() +
             " | NearDeath: " + data.isNearDeath()
@@ -171,6 +146,51 @@ public final class MysticCommands {
         VampireService.transform(player);
         int blood = player.getFoodData().getFoodLevel() * 5;
         source.sendSuccess(() -> Component.literal("§4Transformado em Vampiro.§r Blood: " + blood + "/100"), false);
+        return 1;
+    }
+
+    private static int cmdVampireAscend(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+
+        if (!VampireService.isVampire(player)) {
+            source.sendFailure(Component.literal("§4Apenas vampiros podem ascender."));
+            return 0;
+        }
+        if (!MysticConfig.ENABLE_VAMPIRE_PROGRESSION.get()) {
+            source.sendFailure(Component.literal("O sistema de progressão vampírica está desativado."));
+            return 0;
+        }
+
+        VampireData data = VampireService.getData(player);
+        VampireRank current = data.getRank();
+
+        if (current.isMax()) {
+            source.sendFailure(Component.literal("§4Você já atingiu o estágio máximo: §6" + current.displayName()));
+            return 0;
+        }
+
+        long requiredEssence = VampireProgressionService.getRequiredEssence(current);
+        long requiredAgeTicks = VampireProgressionService.getRequiredAgeHours(current) * 72000L;
+        long currentEssence = data.getBloodEssence();
+        long currentAgeTicks = data.getVampireAgeTicks();
+
+        if (currentEssence < requiredEssence) {
+            source.sendFailure(Component.literal(
+                "§4Essência insuficiente. Necessário: §6" + requiredEssence + "§4, atual: §c" + currentEssence));
+            return 0;
+        }
+        if (currentAgeTicks < requiredAgeTicks) {
+            long requiredHours = VampireProgressionService.getRequiredAgeHours(current);
+            long currentHours = currentAgeTicks / 72000L;
+            source.sendFailure(Component.literal(
+                "§4Idade insuficiente. Necessário: §6" + requiredHours + "h§4, atual: §c" + currentHours + "h"));
+            return 0;
+        }
+
+        VampireProgressionService.ascend(player);
+        VampireRank newRank = VampireService.getData(player).getRank();
+        source.sendSuccess(() -> Component.literal(
+            "§6✦ Ascensão concluída! §rNovo estágio: §4" + newRank.displayName()), true);
         return 1;
     }
 

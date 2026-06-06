@@ -8,7 +8,6 @@ public final class MysticConfig {
 
     // ── Geral ────────────────────────────────────────────────────────────────
 
-    public static final ModConfigSpec.IntValue MAX_LEVEL;
     public static final ModConfigSpec.BooleanValue DEBUG_LOGGING;
 
     // ── Vampiro ───────────────────────────────────────────────────────────────
@@ -30,17 +29,32 @@ public final class MysticConfig {
     public static final ModConfigSpec.DoubleValue ENTITY_EXSANGUINATION_DAMAGE;
     public static final ModConfigSpec.DoubleValue BLOOD_DRAIN_AMOUNT_PER_INTERVAL;
 
+    // ── Progressão vampírica ──────────────────────────────────────────────────
+
+    public static final ModConfigSpec.BooleanValue ENABLE_VAMPIRE_PROGRESSION;
+    public static final ModConfigSpec.BooleanValue TRACK_VAMPIRE_AGE;
+
+    public static final ModConfigSpec.LongValue NEWBORN_TO_NEOPHYTE_ESSENCE;
+    public static final ModConfigSpec.LongValue NEOPHYTE_TO_VAMPIRE_ESSENCE;
+    public static final ModConfigSpec.LongValue VAMPIRE_TO_ELDER_ESSENCE;
+    public static final ModConfigSpec.LongValue ELDER_TO_LORD_ESSENCE;
+    public static final ModConfigSpec.LongValue LORD_TO_PRINCE_ESSENCE;
+    public static final ModConfigSpec.LongValue PRINCE_TO_SOVEREIGN_ESSENCE;
+
+    public static final ModConfigSpec.LongValue NEWBORN_TO_NEOPHYTE_AGE_HOURS;
+    public static final ModConfigSpec.LongValue NEOPHYTE_TO_VAMPIRE_AGE_HOURS;
+    public static final ModConfigSpec.LongValue VAMPIRE_TO_ELDER_AGE_HOURS;
+    public static final ModConfigSpec.LongValue ELDER_TO_LORD_AGE_HOURS;
+    public static final ModConfigSpec.LongValue LORD_TO_PRINCE_AGE_HOURS;
+    public static final ModConfigSpec.LongValue PRINCE_TO_SOVEREIGN_AGE_HOURS;
+
     public static final ModConfigSpec SPEC;
 
     static {
         BUILDER.comment("Configurações gerais do MysticRealm").push("general");
 
-        MAX_LEVEL = BUILDER
-            .comment("Nível máximo que um jogador sobrenatural pode atingir")
-            .defineInRange("maxLevel", 10, 1, Integer.MAX_VALUE);
-
         DEBUG_LOGGING = BUILDER
-            .comment("Ativar mensagens de debug no console")
+            .translation("mysticrealm.configuration.general.debugLogging")
             .define("debugLogging", true);
 
         BUILDER.pop();
@@ -48,58 +62,118 @@ public final class MysticConfig {
         BUILDER.comment("Configurações do sistema vampírico").push("vampire");
 
         VAMPIRE_BLOOD_DRAIN_AMOUNT = BUILDER
-            .comment("Quantidade de sangue drenado por intervalo")
+            .translation("mysticrealm.configuration.vampire.bloodDrainAmount")
             .defineInRange("bloodDrainAmount", 1, 0, Integer.MAX_VALUE);
 
         VAMPIRE_BLOOD_DRAIN_INTERVAL_SECONDS = BUILDER
-            .comment("Intervalo de drenagem passiva de sangue em segundos")
+            .translation("mysticrealm.configuration.vampire.bloodDrainIntervalSeconds")
             .defineInRange("bloodDrainIntervalSeconds", 60, 1, Integer.MAX_VALUE);
 
         VAMPIRE_SUNLIGHT_DAMAGE_ENABLED = BUILDER
-            .comment("Habilitar dano de luz solar para vampiros")
+            .translation("mysticrealm.configuration.vampire.sunlightDamageEnabled")
             .define("sunlightDamageEnabled", true);
 
         VAMPIRE_SUNLIGHT_MAX_SURVIVAL_SECONDS = BUILDER
-            .comment("Tempo máximo de sobrevivência ao sol no nível máximo (segundos). Level 1 sempre resulta em morte instantânea.")
+            .translation("mysticrealm.configuration.vampire.sunlightMaxSurvivalSeconds")
             .defineInRange("sunlightMaxSurvivalSeconds", 10.0, 1.0, Double.MAX_VALUE);
 
         VAMPIRE_REGENERATION_THRESHOLD = BUILDER
-            .comment("Nível de sangue mínimo para regeneração passiva (0-100)")
+            .translation("mysticrealm.configuration.vampire.regenerationThreshold")
             .defineInRange("regenerationThreshold", 75, 0, 100);
 
         VAMPIRE_SPEED_THRESHOLD = BUILDER
-            .comment("Nível de sangue mínimo para velocidade passiva (0-100)")
+            .translation("mysticrealm.configuration.vampire.speedThreshold")
             .defineInRange("speedThreshold", 50, 0, 100);
 
         VAMPIRE_IMMORTALITY_ENABLED = BUILDER
-            .comment("Habilitar imortalidade vampírica (apenas fraquezas sobrenaturais podem matar)")
+            .translation("mysticrealm.configuration.vampire.immortalityEnabled")
             .define("immortalityEnabled", true);
 
         VAMPIRE_MINIMUM_HEALTH = BUILDER
-            .comment("HP mínimo ao qual a imortalidade reduz o vampiro (meio coração = 1.0)")
+            .translation("mysticrealm.configuration.vampire.minimumHealth")
             .defineInRange("minimumHealth", 1.0, 0.5, 20.0);
 
         VAMPIRE_NEAR_DEATH_DEBUFF_DURATION = BUILDER
-            .comment("Duração dos debuffs de quase-morte em ticks (600 = 30 segundos)")
+            .translation("mysticrealm.configuration.vampire.nearDeathDebuffDuration")
             .defineInRange("nearDeathDebuffDuration", 600, 20, Integer.MAX_VALUE);
 
         ENTITY_BLOOD_REGEN_FRACTION = BUILDER
-            .comment("Fração do maxBlood regenerada por intervalo (0.05 = 5% → 20 intervalos para encher = 1 dia MC)")
+            .translation("mysticrealm.configuration.vampire.entityBloodRegenFraction")
             .defineInRange("entityBloodRegenFraction", 0.05, 0.0, 1.0);
 
         ENTITY_BLOOD_REGEN_INTERVAL_TICKS = BUILDER
-            .comment("Ticks entre regenerações de sangue das entidades (1200 = 60s; 20 × 1200 = 24000 ticks = 1 dia MC)")
+            .translation("mysticrealm.configuration.vampire.entityBloodRegenIntervalTicks")
             .defineInRange("entityBloodRegenIntervalTicks", 1200, 1, Integer.MAX_VALUE);
 
         ENTITY_EXSANGUINATION_DAMAGE = BUILDER
-            .comment("Dano por intervalo de drenagem quando o pool de sangue da entidade está vazio (padrão: 1.0)")
+            .translation("mysticrealm.configuration.vampire.exsanguinationDamage")
             .defineInRange("exsanguinationDamage", 1.0, 0.0, Double.MAX_VALUE);
 
         BLOOD_DRAIN_AMOUNT_PER_INTERVAL = BUILDER
-            .comment("Sangue drenado da entidade por intervalo de 5 ticks (padrão: 0.5)")
+            .translation("mysticrealm.configuration.vampire.bloodDrainAmountPerInterval")
             .defineInRange("bloodDrainAmountPerInterval", 0.5, 0.0, Double.MAX_VALUE);
 
-        BUILDER.pop();
+        BUILDER.comment("Progressão vampírica (rank, essência, idade)").push("progression");
+
+        ENABLE_VAMPIRE_PROGRESSION = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.enableVampireProgression")
+            .define("enableVampireProgression", true);
+
+        TRACK_VAMPIRE_AGE = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.trackVampireAge")
+            .define("trackVampireAge", true);
+
+        NEWBORN_TO_NEOPHYTE_ESSENCE = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.newbornToNeophyteEssence")
+            .defineInRange("newbornToNeophyteEssence", 100L, 1L, Long.MAX_VALUE);
+
+        NEOPHYTE_TO_VAMPIRE_ESSENCE = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.neophyteToVampireEssence")
+            .defineInRange("neophyteToVampireEssence", 500L, 1L, Long.MAX_VALUE);
+
+        VAMPIRE_TO_ELDER_ESSENCE = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.vampireToElderEssence")
+            .defineInRange("vampireToElderEssence", 2000L, 1L, Long.MAX_VALUE);
+
+        ELDER_TO_LORD_ESSENCE = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.elderToLordEssence")
+            .defineInRange("elderToLordEssence", 10000L, 1L, Long.MAX_VALUE);
+
+        LORD_TO_PRINCE_ESSENCE = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.lordToPrinceEssence")
+            .defineInRange("lordToPrinceEssence", 50000L, 1L, Long.MAX_VALUE);
+
+        PRINCE_TO_SOVEREIGN_ESSENCE = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.princeToSovereignEssence")
+            .defineInRange("princeToSovereignEssence", 250000L, 1L, Long.MAX_VALUE);
+
+        NEWBORN_TO_NEOPHYTE_AGE_HOURS = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.newbornToNeophyteAgeHours")
+            .defineInRange("newbornToNeophyteAgeHours", 1L, 0L, Long.MAX_VALUE);
+
+        NEOPHYTE_TO_VAMPIRE_AGE_HOURS = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.neophyteToVampireAgeHours")
+            .defineInRange("neophyteToVampireAgeHours", 5L, 0L, Long.MAX_VALUE);
+
+        VAMPIRE_TO_ELDER_AGE_HOURS = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.vampireToElderAgeHours")
+            .defineInRange("vampireToElderAgeHours", 15L, 0L, Long.MAX_VALUE);
+
+        ELDER_TO_LORD_AGE_HOURS = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.elderToLordAgeHours")
+            .defineInRange("elderToLordAgeHours", 50L, 0L, Long.MAX_VALUE);
+
+        LORD_TO_PRINCE_AGE_HOURS = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.lordToPrinceAgeHours")
+            .defineInRange("lordToPrinceAgeHours", 100L, 0L, Long.MAX_VALUE);
+
+        PRINCE_TO_SOVEREIGN_AGE_HOURS = BUILDER
+            .translation("mysticrealm.configuration.vampire.progression.princeToSovereignAgeHours")
+            .defineInRange("princeToSovereignAgeHours", 250L, 0L, Long.MAX_VALUE);
+
+        BUILDER.pop(); // progression
+
+        BUILDER.pop(); // vampire
 
         SPEC = BUILDER.build();
     }

@@ -76,6 +76,9 @@ public final class VampireHudOverlay {
             g.text(font, "Sunlight burning!", 10, 34, 0xFFFF8800, true);
         }
 
+        // Bloco de progressão vampírica (rank / essência / idade) — canto inferior esquerdo
+        renderProgressionInfo(g, font, screenH, data);
+
         // Barra de sangue da entidade alvo (hover ou drenagem ativa)
         if (ClientDrainState.targetBloodMax > 0f) {
             int barW = 80;
@@ -95,5 +98,38 @@ public final class VampireHudOverlay {
             int labelColor = ClientDrainState.isDraining ? 0xFFFF4444 : 0xFFCC3333;
             g.text(font, label, bx, by - 10, labelColor, true);
         }
+    }
+
+    private static void renderProgressionInfo(GuiGraphicsExtractor g, Font font, int screenH, VampireData data) {
+        int baseY = screenH - 70;
+
+        // Rank em dourado
+        String rankLine = "[ " + data.getRank().displayName() + " ]";
+        g.text(font, rankLine, 10, baseY, 0xFFFFAA00, true);
+
+        // Essência em branco
+        String essenceLine = formatLong(data.getBloodEssence()) + " Essence";
+        g.text(font, essenceLine, 10, baseY + 10, 0xFFFFFFFF, true);
+
+        // Idade em cinza claro
+        String ageLine = formatAge(data.getVampireAgeTicks());
+        g.text(font, ageLine, 10, baseY + 20, 0xFFAAAAAA, true);
+    }
+
+    /** Formata ticks de idade vampírica em "Xh Ym" (ex: "12h 37m"). */
+    private static String formatAge(long ticks) {
+        long totalMinutes = ticks / 1200L;
+        long hours = totalMinutes / 60L;
+        long minutes = totalMinutes % 60L;
+        if (hours == 0 && minutes == 0) return "< 1m";
+        if (hours == 0) return minutes + "m";
+        return hours + "h " + minutes + "m";
+    }
+
+    /** Formata longs grandes com separador de milhar (ex: 250000 → "250,000"). */
+    private static String formatLong(long value) {
+        if (value < 1000L) return String.valueOf(value);
+        if (value < 1_000_000L) return (value / 1000L) + "," + String.format("%03d", value % 1000L);
+        return (value / 1_000_000L) + "M";
     }
 }
