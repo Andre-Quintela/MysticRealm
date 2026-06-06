@@ -22,18 +22,22 @@ FASES CONCLUÍDAS:
 
 Fase 1 — Infraestrutura Base:
 - Sistema de Raças (RaceType enum + IRace)
-- Sistema de Progressão (level + experience em PlayerSupernaturalData)
 - Data Attachments com MapCodec e copyOnDeath
-- Sincronização cliente-servidor (SyncPlayerDataPacket)
-- Eventos customizados (RaceChangedEvent, LevelChangedEvent, ExperienceChangedEvent)
+- Sincronização cliente-servidor (SyncPlayerDataPacket — apenas race)
+- Eventos customizados (RaceChangedEvent)
 - Sistema de Configuração (MysticConfig → mysticrealm-common.toml)
-- Comandos de Debug (/mystic info, /mystic race set, /mystic level set)
+  - Todas as entradas usam .translation("mysticrealm.configuration.{seção}.{chave}") explícito
+  - Traduções em assets/mysticrealm/lang/en_us.json (com tooltips .tooltip)
+- Comandos de Debug (/mystic info, /mystic race set)
+
+NOTA: O sistema de level/XP numérico foi removido. Progressão vampírica é feita via VampireRank (Fase 4a).
+LevelChangedEvent e ExperienceChangedEvent foram deletados.
 
 Fase 2 — Sistema de Vampirismo:
 - RaceResource genérico (ResourceType.BLOOD/RAGE/MANA + RaceResource com MapCodec)
 - VampireData attachment (blood como RaceResource, transformed, sunlightBurning, nearDeath)
 - VampireService (transform, cure, isVampire, getData)
-- Dano solar escalonado por nível (level 1 = morte instantânea, level max = sobrevivência configurável)
+- Dano solar escalonado por VampireRank (NEWBORN = morte instantânea, BLOOD_SOVEREIGN = máximo configurável)
 - Efeitos passivos por nível de sangue (Night Vision sempre, Regeneration ≥75%, Speed ≥50%)
 - Penalidades por fome (Weakness/Slowness I e II conforme sangue baixa)
 - Sistema de imortalidade (cancela morte exceto por fraquezas sobrenaturais)
@@ -43,7 +47,7 @@ Fase 2 — Sistema de Vampirismo:
 - Items: WoodenStakeItem + BloodVialItem (+25 sangue ao consumir)
 - VampireHudOverlay (ícones de gota de sangue, mensagem near-death, aviso de luz solar)
 - Comandos: /mystic vampire transform|cure, /mystic blood set|add|info
-- Config [vampire]: 10 valores configuráveis incluindo sunlightMaxSurvivalSeconds
+- Config [vampire]: valores configuráveis incluindo sunlightMaxSurvivalSeconds
 
 Fase 3 — Sistema de Alimentação Vampírica (Drenagem de Sangue):
 - ChannelAction (interface genérica reutilizável — lobisomens/bruxaria futuramente)
@@ -54,25 +58,60 @@ Fase 3 — Sistema de Alimentação Vampírica (Drenagem de Sangue):
 - BloodDrainAction (implements ChannelAction — singleton INSTANCE)
   - 60 ticks (3s) de duração, 100 ticks (5s) de cooldown
   - onTick(): a cada 5 ticks — partículas HEART no pescoço + SoundEvents.WITCH_DRINK
-  - onComplete(): +4 food units vampiro, 2 dano + Weakness I (200t) vítima,
+  - onComplete(): +4 food units vampiro, Weakness I (200t) vítima,
     aldeões ganham Slowness I + som de sofrimento
+  - bloodAccumulator (Map<UUID,Float>): food fracionário acumulado por vampiro
+  - essenceAccumulator (Map<UUID,Double>): essência fracionária acumulada — evita arredondamento para zero
   - Dispara BloodDrainStartEvent / BloodDrainCompleteEvent / BloodDrainCancelEvent / BloodDrainInterruptedEvent
-- DrainableEntityRegistry (instanceof Animal para animais, EntityType para aldeões, Player com guards)
-  - Inválidos: vampiros, criativos, espectadores, golems, armor stands
+- DrainableEntityRegistry:
+  - instanceof Animal para animais passivos
+  - VALID_HUMANOID_TYPES (EntityType Set): VILLAGER, WANDERING_TRADER, PILLAGER, VINDICATOR, EVOKER, ILLUSIONER, WITCH
+  - Player com guards (não vampiros, criativos, espectadores)
+- Pool de sangue por entidade (EntityBloodData attachment):
+  - Inicializado na primeira drenagem com maxBlood = maxHealth
+  - Regenera via EntityTickEvent (fração configurável por intervalo configurável)
+  - Eventos: BloodPoolChangedEvent, BloodRegeneratedEvent, EntityExsanguinatedEvent
 - 3 pacotes de rede:
   - RequestBloodDrainPacket (C→S, int entityId)
   - CancelBloodDrainPacket (C→S, sem campos)
-  - SyncDrainStatePacket (S→C, boolean draining, int ticksElapsed, totalTicks, cooldownTicks)
+  - SyncDrainStatePacket (S→C, draining, ticksElapsed, totalTicks, cooldownTicks, targetBloodCurrent, targetBloodMax)
 - ServerPacketHandlers (handleRequestDrain + handleCancelDrain)
-- ClientDrainState (campos estáticos: isDraining, ticksElapsed, totalTicks, cooldownTicks)
+- ClientDrainState (campos estáticos: isDraining, ticksElapsed, totalTicks, cooldownTicks, targetBloodCurrent, targetBloodMax)
 - VampireKeyBindings: tecla V — categoria "Mystic Realm", KeyMapping.Category(Identifier)
   - Registrado via modEventBus.addListener() em MysticRealmClient
 - VampireClientInputHandler: ClientTickEvent.Post — detecta crosshairPickEntity, envia pacotes
-- VampireHudOverlay: barra de progresso vermelha na base da tela durante drenagem ativa
+- VampireHudOverlay: barra de progresso vermelha + barra de sangue da entidade alvo
 - VampireEventHandler: ChannelService.tick() + sync a cada 5t + LivingDamageEvent.Pre interrupt + PlayerLoggedOutEvent cleanup
 
-Config [geral]:
-- maxLevel: padrão 10 (válido para todas as raças)
+Fase 4a — Sistema de Progressão Vampírica:
+- VampireRank enum (7 estágios): NEWBORN → NEOPHYTE → VAMPIRE → ELDER → VAMPIRE_LORD → PRINCE_OF_NIGHT → BLOOD_SOVEREIGN
+  - next() retorna Optional<VampireRank>, isMax(), displayName()
+- VampireData expandido (+4 campos com optionalFieldOf para retrocompatibilidade):
+  - VampireRank rank (padrão NEWBORN)
+  - long bloodEssence (permanente, não consumida)
+  - long vampireAgeTicks (ticks vividos como vampiro)
+  - int ascensionCount
+  - Setters raw para cliente (setRankRaw, setBloodEssenceRaw, etc.)
+- BloodEssenceRegistry (Map<EntityType<?>, Long>):
+  - Chicken=1, Cod/Salmon/Rabbit=1, Pig/Sheep/Goat=2, Cow/Mooshroom/Donkey/Mule/Llama=3,
+    Horse/Camel=4, Villager=10, WanderingTrader/Evoker=12, Witch=9, Pillager/Vindicator=8, Illusioner=11, Player=15
+  - getProportionalEssence usa essenceAccumulator fracionário em BloodDrainAction (evita arredondamento)
+- VampireProgressionService:
+  - canAscend() / ascend() / grantEssence(player, amount, source) / tickAge(player)
+  - getRequiredEssence(rank) / getRequiredAgeHours(rank) — lidos de MysticConfig
+  - MILESTONE_HOURS = {1, 5, 15, 50, 100, 250} → VampireAgeMilestoneEvent
+- 4 novos eventos: BloodEssenceGainedEvent, VampireRankChangedEvent, VampireAscensionEvent, VampireAgeMilestoneEvent
+- SyncVampireProgressionPacket (S→C): rank, bloodEssence, vampireAgeTicks, ascensionCount
+  - Enviado no login, respawn, mudança de dimensão e a cada grantEssence
+- Comando: /mystic vampire ascend (valida essência + idade, mensagens de erro específicas)
+- VampireHudOverlay expandido: bloco rank/essência/idade no canto inferior esquerdo (y=screenH-70)
+  - formatAge(ticks) → "Xh Ym" | formatLong(value) → "250,000" ou "1M"
+- Config [vampire.progression]: enableVampireProgression, trackVampireAge,
+  6×essence (NEWBORN→NEOPHYTE=100 ... PRINCE→SOVEREIGN=250000),
+  6×ageHours (1h ... 250h)
+- Dano solar agora escala por rank.ordinal() em vez de level numérico:
+  - NEWBORN (ordinal=0) = morte instantânea
+  - BLOOD_SOVEREIGN (ordinal=6) = sunlightMaxSurvivalSeconds configurável
 
 ---
 
@@ -81,22 +120,20 @@ ESTRUTURA DE PACOTES:
 src/main/java/com/nashgoldd/mysticrealm/
 ├── MysticRealm.java
 ├── MysticRealmClient.java                      ← @Mod(dist=CLIENT) + registro de keybinds
-├── attachment/PlayerSupernaturalData.java      ← race + level + xp
+├── attachment/PlayerSupernaturalData.java      ← apenas race (level/XP removidos)
 ├── command/MysticCommands.java
-├── config/MysticConfig.java
+├── config/MysticConfig.java                   ← todas as entries com .translation() explícito
 ├── event/
-│   ├── RaceChangedEvent.java
-│   ├── LevelChangedEvent.java
-│   └── ExperienceChangedEvent.java
+│   └── RaceChangedEvent.java
 ├── event/handler/PlayerEventHandler.java
 ├── network/
-│   ├── MysticNetwork.java                      ← playToClient + playToServer + syncDrainToClient()
+│   ├── MysticNetwork.java                      ← playToClient + playToServer + syncDrainToClient() + syncVampireProgressionToClient()
 │   ├── MysticDamageTypes.java
-│   ├── SyncPlayerDataPacket.java
-│   ├── ClientPacketHandlers.java               ← handleSyncVampireData + handleSyncDrainState
+│   ├── SyncPlayerDataPacket.java               ← apenas race
+│   ├── ClientPacketHandlers.java               ← handleSyncVampireData + handleSyncDrainState + handleSyncVampireProgression
 │   └── ServerPacketHandlers.java               ← handleRequestDrain + handleCancelDrain
 ├── registry/
-│   ├── MysticAttachments.java                  ← SUPERNATURAL_DATA + VAMPIRE_DATA
+│   ├── MysticAttachments.java                  ← SUPERNATURAL_DATA + VAMPIRE_DATA + ENTITY_BLOOD
 │   └── MysticItems.java
 ├── supernatural/
 │   ├── race/RaceType.java
@@ -109,35 +146,53 @@ src/main/java/com/nashgoldd/mysticrealm/
 │       └── ChannelService.java
 └── supernatural/vampire/
     ├── VampireWeaknessType.java
-    ├── attachment/VampireData.java
+    ├── attachment/
+    │   ├── VampireData.java                    ← +rank, bloodEssence, vampireAgeTicks, ascensionCount
+    │   └── EntityBloodData.java                ← pool de sangue por entidade
+    ├── balance/BloodBalance.java               ← constantes de balanço de drenagem
     ├── client/
-    │   ├── VampireHudOverlay.java
-    │   ├── VampireKeyBindings.java              ← KeyMapping.Category(Identifier) + register()
-    │   ├── VampireClientInputHandler.java       ← ClientTickEvent, ClientPacketDistributor
-    │   └── ClientDrainState.java               ← campos estáticos de estado cliente
+    │   ├── VampireHudOverlay.java              ← ícones de sangue + rank/essência/idade + barra de alvo
+    │   ├── VampireKeyBindings.java
+    │   ├── VampireClientInputHandler.java
+    │   └── ClientDrainState.java
+    ├── essence/BloodEssenceRegistry.java       ← essência base por EntityType
     ├── event/
-    │   ├── BloodLevelChangedEvent.java
     │   ├── BloodDrainStartEvent.java
+    │   ├── BloodDrainTickEvent.java
     │   ├── BloodDrainCompleteEvent.java
     │   ├── BloodDrainCancelEvent.java
-    │   ├── BloodDrainInterruptedEvent.java      ← campo extra: String reason
+    │   ├── BloodDrainInterruptedEvent.java
+    │   ├── BloodEssenceGainedEvent.java
+    │   ├── BloodPoolChangedEvent.java
+    │   ├── BloodRegeneratedEvent.java
+    │   ├── EntityExsanguinatedEvent.java
     │   ├── VampireCuredEvent.java
     │   ├── VampireNearDeathEvent.java
-    │   └── VampireTransformEvent.java
+    │   ├── VampireTransformEvent.java
+    │   ├── VampireRankChangedEvent.java
+    │   ├── VampireAscensionEvent.java
+    │   └── VampireAgeMilestoneEvent.java
     ├── event/handler/VampireEventHandler.java
     ├── feeding/
-    │   ├── BloodDrainAction.java               ← implements ChannelAction (singleton)
+    │   ├── BloodDrainAction.java               ← bloodAccumulator + essenceAccumulator (fracionários)
     │   └── DrainableEntityRegistry.java
     ├── item/
     │   ├── BloodVialItem.java
     │   └── WoodenStakeItem.java
     ├── network/
     │   ├── SyncVampireDataPacket.java
+    │   ├── SyncVampireProgressionPacket.java   ← rank, bloodEssence, vampireAgeTicks, ascensionCount
     │   ├── RequestBloodDrainPacket.java
     │   ├── CancelBloodDrainPacket.java
     │   └── SyncDrainStatePacket.java
+    ├── progression/
+    │   ├── VampireRank.java                    ← enum 7 estágios
+    │   └── VampireProgressionService.java
     ├── registry/VampireWeaknessRegistry.java
     └── service/VampireService.java
+
+src/main/resources/assets/mysticrealm/lang/en_us.json
+  ← traduções de items, keybinds, death messages E config screen (todas as chaves config)
 
 ---
 
@@ -150,6 +205,8 @@ ATTACHMENTS:
 - AttachmentType.builder(Supplier).serialize(MapCodec).copyOnDeath().build()
 - MapCodec<T> obrigatório (não Codec) via RecordCodecBuilder.mapCodec()
 - player.getData(MysticAttachments.SUPERNATURAL_DATA)  ← Supplier<AttachmentType<T>>
+- Se a classe tem múltiplos construtores, usar lambda em vez de method reference:
+  AttachmentType.builder(() -> new MinhaClasse()) — evita ambiguidade entre Supplier e Function<IAttachmentHolder,T>
 
 REDE:
 - RegisterPayloadHandlersEvent → event.registrar("1.0").playToClient/playToServer(TYPE, STREAM_CODEC, handler)
@@ -209,6 +266,17 @@ EVENTOS CLIENT-ONLY:
 - RenderGuiEvent.Post para HUD overlays
 - ClientTickEvent.Post para tick de input no cliente
 
+CONFIG SCREEN (NeoForge):
+- .translation("chave") OBRIGATÓRIO em cada entry do builder — lang file sozinho não funciona
+- Chave de entry: "mysticrealm.configuration.{seção}.{chave}" (ex: "mysticrealm.configuration.vampire.bloodDrainAmount")
+- Chave de seção (cabeçalho): NeoForge usa apenas o nome do último push(), sem os pais
+  ex: BUILDER.push("vampire").push("progression") → chave da seção = "mysticrealm.configuration.progression"
+  → adicionar AMBAS as chaves no lang (com e sem o pai) por segurança
+- Tooltip: "mysticrealm.configuration.{seção}.{chave}.tooltip" no lang file
+- Formato de acumuladores fracionários (padrão do projeto):
+  - bloodAccumulator / essenceAccumulator em BloodDrainAction (Map<UUID, Float/Double>)
+  - Acumula valor fracionário por tick e só aplica inteiros — evita arredondamento para zero
+
 ---
 
 PROBLEMAS CONHECIDOS DO IDE (VS CODE):
@@ -219,7 +287,8 @@ PROBLEMAS CONHECIDOS DO IDE (VS CODE):
 ---
 
 PRÓXIMAS FASES PLANEJADAS:
-- Fase 4: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
+- Fase 4b: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
+- Fase 5: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
   - Reutilizar ChannelAction para habilidades ativas do lobisomem
-- Fase 5: Bruxaria (RaceResource MANA, feitiços, crafting sobrenatural)
+- Fase 6: Bruxaria (RaceResource MANA, feitiços, crafting sobrenatural)
   - Reutilizar ChannelAction para lançamento de feitiços
