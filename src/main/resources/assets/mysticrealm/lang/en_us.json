@@ -97,6 +97,7 @@
   "item.mysticrealm.vampire_blood_vial": "Vampire Blood Vial",
   "item.mysticrealm.hostile_vampire_spawn_egg": "Hostile Vampire Spawn Egg",
   "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight",
+  "itemGroup.mysticrealm.main": "Mystic Realm",
   "key.category.mysticrealm.mysticrealm": "Mystic Realm",
   "key.mysticrealm.drain_blood": "Drain Blood"
 }
