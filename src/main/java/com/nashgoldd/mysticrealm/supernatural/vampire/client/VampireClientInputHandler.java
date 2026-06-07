@@ -18,6 +18,11 @@ public final class VampireClientInputHandler {
 
     private VampireClientInputHandler() {}
 
+    // true quando a drenagem parou enquanto a tecla ainda estava pressionada —
+    // exige que o player solte e re-pressione para drenar novamente (evita dano acidental)
+    private static boolean requireKeyRelease = false;
+    private static boolean prevWasDraining   = false;
+
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
@@ -31,7 +36,16 @@ public final class VampireClientInputHandler {
 
         boolean keyDown = VampireKeyBindings.KEY_DRAIN_BLOOD.isDown();
 
-        if (keyDown && !ClientDrainState.isDraining && ClientDrainState.cooldownTicks <= 0) {
+        // Se a drenagem parou enquanto a tecla ainda está pressionada, exige re-pressionar
+        if (prevWasDraining && !ClientDrainState.isDraining && keyDown) {
+            requireKeyRelease = true;
+        }
+        if (!keyDown) {
+            requireKeyRelease = false;
+        }
+        prevWasDraining = ClientDrainState.isDraining;
+
+        if (keyDown && !requireKeyRelease && !ClientDrainState.isDraining && ClientDrainState.cooldownTicks <= 0) {
             // Detectar alvo pelo crosshair (validação completa ocorre no servidor)
             if (mc.crosshairPickEntity instanceof LivingEntity target
                     && DrainableEntityRegistry.isValidTarget(target, mc.player)

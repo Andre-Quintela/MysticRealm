@@ -76,7 +76,11 @@ public final class ChannelService {
         state.ticksElapsed++;
         state.action.onTick(target, player, state.ticksElapsed);
 
-        if (state.ticksElapsed >= state.action.getDurationTicks()) {
+        if (state.action.shouldSafeStop(target, player, state.ticksElapsed)) {
+            // Safe stop: pool esgotado ou condição de parada sem penalidade — sem cooldown
+            ACTIVE.remove(id);
+            state.action.onComplete(target, player);
+        } else if (state.ticksElapsed >= state.action.getDurationTicks()) {
             ACTIVE.remove(id);
             COOLDOWNS.computeIfAbsent(id, k -> new HashMap<>())
                 .put(state.action.getActionId(), state.action.getCooldownTicks());

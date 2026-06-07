@@ -28,7 +28,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public final class BloodDrainAction implements ChannelAction {
@@ -42,11 +44,21 @@ public final class BloodDrainAction implements ChannelAction {
     // Acumula essência fracionária por vampiro — necessário pois base*fraction é < 1 para animais pequenos
     private static final Map<UUID, Double> essenceAccumulator = new HashMap<>();
 
+    // Rastreia se sangue foi drenado nesta sessão — safe stop só dispara se o pool
+    // esvaziou DURANTE a ação, não se já estava vazio ao iniciar
+    private static final Set<UUID> drainedThisSession = new HashSet<>();
+
     private BloodDrainAction() {}
 
     @Override public String getActionId()   { return ID; }
-    @Override public int getDurationTicks() { return 60; }
+    @Override public int getDurationTicks() { return Integer.MAX_VALUE; }
     @Override public int getCooldownTicks() { return 100; }
+
+    @Override
+    public boolean shouldSafeStop(LivingEntity target, ServerPlayer actor, int ticksElapsed) {
+        return drainedThisSession.contains(actor.getUUID())
+            && EntityBloodData.getOrInit(target).isEmpty();
+    }
 
     @Override
     public boolean isValidTarget(LivingEntity target, ServerPlayer actor) {
@@ -55,6 +67,7 @@ public final class BloodDrainAction implements ChannelAction {
 
     @Override
     public void onStart(LivingEntity target, ServerPlayer actor) {
+        drainedThisSession.remove(actor.getUUID());
         NeoForge.EVENT_BUS.post(new BloodDrainStartEvent(actor, target));
         MysticNetwork.syncDrainToClient(actor);
     }
@@ -64,7 +77,7 @@ public final class BloodDrainAction implements ChannelAction {
         if (ticksElapsed % 5 != 0) return;
 
         ServerLevel sl = (ServerLevel) actor.level();
-        Vec3 neck = target.getEyePosition().subtract(0, 0.3, 0);
+        Vec3 neck = target.getEyePosition().subtract(0, 0.1, 0);
 
         sl.sendParticles(MysticParticles.BLOOD_DRAIN.get(),
             neck.x, neck.y, neck.z, 3, 0.15, 0.1, 0.15, 0.0);
@@ -84,6 +97,7 @@ public final class BloodDrainAction implements ChannelAction {
             // Drenar do pool da entidade
             float actuallyDrained = bloodData.drain(BloodBalance.drainAmountPerInterval());
             target.setData(MysticAttachments.ENTITY_BLOOD, bloodData);
+            drainedThisSession.add(actor.getUUID());
 
             // Essência proporcional ao sangue drenado — acumulada para evitar arredondamento para zero
             float maxBlood = bloodData.getMaxBlood();
@@ -132,9 +146,9 @@ public final class BloodDrainAction implements ChannelAction {
 
     @Override
     public void onComplete(LivingEntity target, ServerPlayer actor) {
-        // Descarta fração remanescente — os intervalos anteriores já cobriram o total
         bloodAccumulator.remove(actor.getUUID());
         essenceAccumulator.remove(actor.getUUID());
+        drainedThisSession.remove(actor.getUUID());
 
         // Penalidade de Fraqueza na vítima (mantida do sistema original)
         target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 0, false, true));
@@ -154,9 +168,9 @@ public final class BloodDrainAction implements ChannelAction {
 
     @Override
     public void onInterrupt(LivingEntity target, ServerPlayer actor, String reason) {
-        // Progresso já foi aplicado tick a tick — não há perda ao interromper
         bloodAccumulator.remove(actor.getUUID());
         essenceAccumulator.remove(actor.getUUID());
+        drainedThisSession.remove(actor.getUUID());
 
         if ("cancel".equals(reason)) {
             NeoForge.EVENT_BUS.post(new BloodDrainCancelEvent(actor, target));
@@ -169,5 +183,6 @@ public final class BloodDrainAction implements ChannelAction {
     public static void clearAccumulator(UUID playerId) {
         bloodAccumulator.remove(playerId);
         essenceAccumulator.remove(playerId);
+        drainedThisSession.remove(playerId);
     }
 }
