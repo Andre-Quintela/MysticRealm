@@ -113,6 +113,58 @@ Fase 4a — Sistema de Progressão Vampírica:
   - NEWBORN (ordinal=0) = morte instantânea
   - BLOOD_SOVEREIGN (ordinal=6) = sunlightMaxSurvivalSeconds configurável
 
+Fase 4b — Sistema de Infecção Vampírica (VampireBloodVial):
+- IPendingTransformation (interface genérica em supernatural/transformation/)
+  - applyTransformation(ServerPlayer, DamageSource) + onExpire(ServerPlayer)
+  - Qualquer MobEffect que implemente essa interface é interceptado no LivingDeathEvent
+  - Reutilizável futuramente para WerewolfCurseEffect, DemonicCorruptionEffect, etc.
+- MysticEffects (DeferredRegister<MobEffect>, registry/MysticEffects.java)
+  - Registrar em MysticRealm.java via MysticEffects.register(modEventBus)
+- VampireInfectionEffect (extends MobEffect implements IPendingTransformation)
+  - supernatural/vampire/effect/VampireInfectionEffect.java
+  - Categoria HARMFUL, cor 0x8B0000
+  - applyTransformation(): dispara PlayerVampireTransformationEvent (cancellable via ICancellableEvent),
+    chama VampireService.transform(), remove efeito, seta saúde mínima, exibe mensagem, sincroniza tudo
+  - onExpire(): dispara VampireInfectionExpireEvent
+- VampireBloodVialItem (supernatural/vampire/item/VampireBloodVialItem.java)
+  - Consumível com ItemUseAnimation.DRINK, 32 ticks
+  - Bloqueado para vampiros e para quem já tem o efeito ativo
+  - Aplica VampireInfectionEffect com duração de MysticConfig.INFECTION_DURATION_SECONDS * 20 ticks
+- 3 novos eventos: VampireInfectionStartEvent, VampireInfectionExpireEvent, PlayerVampireTransformationEvent
+- VampireEventHandler expandido:
+  - onLivingDeath(): verifica IPendingTransformation ANTES da lógica vampírica (jogador ainda não é vampiro)
+    Cancela morte (funciona em Hardcore), chama applyTransformation
+  - tickInfection(): aviso "fading" quando duration ≤ 600 ticks (30s), detecta expiração natural via Set<UUID>
+  - onPlayerLogout(): limpa o Set<UUID> infectedPlayers
+- Config [vampire.infection]: infectionDurationSeconds(180), enableHardcoreTransformation(true)
+- Textura do item: textures/item/vampire_blood_vial.png (16x16)
+- Ícone do efeito: textures/mob_effect/vampire_infection.png (18x18 — obrigatório)
+
+Fase 4c — Mob Hostil: HostileVampireEntity:
+- HostileVampireEntity (extends Monster): predador noturno raro do Overworld
+  - Atributos: 50HP, 5 dano, velocidade 0.32, follow range 40
+  - Goals: Float(0), MeleeAttack(2), WaterAvoidingRandomStroll(5), LookAtPlayer(6), RandomLookAround(7)
+  - Targets: HurtByTarget(1), NearestAttackableTarget<Player>(2)
+  - Spawn: noturno (!isBrightOutside()), controlado por MysticConfig.ENABLE_VAMPIRE_SPAWN
+  - Queima solar via tag data/minecraft/tags/entity_type/burn_in_daylight.json (não código Java)
+  - Animações: idle (asas), walk (braços/pernas), meleeAttack — via AnimationState + KeyframeAnimation
+  - doHurtTarget() → DATA_IS_ATTACKING synched, attackAnimationTimeout = 20 ticks
+- Rendering (MC 26.x):
+  - HostileVampireRenderState extends LivingEntityRenderState (3 AnimationState)
+  - VampireEntityModel extends EntityModel<HostileVampireRenderState> (KeyframeAnimation baked)
+  - VampireEntityRenderer extends MobRenderer<Entity, RenderState, Model> (3 type params)
+    - createRenderState() + extractRenderState() copiando AnimationStates via .copyFrom()
+    - getTextureLocation(RenderState) retorna Identifier (não ResourceLocation)
+- MysticEntityTypes: DeferredRegister.Entities + registerEntityType() (não DeferredRegister<EntityType<?>>)
+- MysticItems: SpawnEggItem + Item.Properties.spawnEgg(EntityType) (DeferredSpawnEggItem não existe)
+- Config [vampire.spawn]: enableVampireSpawn, vampireSpawnWeight(5), min/maxGroup(1/2)
+- Spawn natural: data/mysticrealm/neoforge/biome_modifier/hostile_vampire_spawns.json
+  - type neoforge:add_spawns, biomas #minecraft:is_overworld, weight 5, minCount 1, maxCount 2
+- Loot: data/mysticrealm/loot_table/entities/hostile_vampire.json
+  - Blood Vial (w3), Rotten Flesh (w5), Empty (w2)
+- RegisterSpawnPlacementsEvent → MOD bus (não NeoForge.EVENT_BUS)
+- SpawnPlacementTypes.ON_GROUND (não SpawnPlacements.ON_GROUND)
+
 ---
 
 ESTRUTURA DE PACOTES:
@@ -134,12 +186,16 @@ src/main/java/com/nashgoldd/mysticrealm/
 │   └── ServerPacketHandlers.java               ← handleRequestDrain + handleCancelDrain
 ├── registry/
 │   ├── MysticAttachments.java                  ← SUPERNATURAL_DATA + VAMPIRE_DATA + ENTITY_BLOOD
-│   └── MysticItems.java
+│   ├── MysticEffects.java                      ← DeferredRegister<MobEffect> + VAMPIRE_INFECTION
+│   ├── MysticItems.java
+│   └── MysticEntityTypes.java                  ← DeferredRegister.Entities + HOSTILE_VAMPIRE
 ├── supernatural/
 │   ├── race/RaceType.java
 │   ├── resource/
 │   │   ├── ResourceType.java                   ← BLOOD, RAGE, MANA
 │   │   └── RaceResource.java
+│   ├── transformation/
+│   │   └── IPendingTransformation.java         ← GENÉRICO: applyTransformation + onExpire
 │   └── channeling/                             ← GENÉRICO (reutilizável)
 │       ├── ChannelAction.java
 │       ├── ChannelState.java
@@ -154,7 +210,13 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   ├── VampireHudOverlay.java              ← ícones de sangue + rank/essência/idade + barra de alvo
     │   ├── VampireKeyBindings.java
     │   ├── VampireClientInputHandler.java
-    │   └── ClientDrainState.java
+    │   ├── ClientDrainState.java
+    │   ├── animation/VampireEntityAnimations.java  ← idle, walk, meleeAttack, rangedAttack
+    │   ├── model/VampireEntityModel.java           ← EntityModel<RenderState> + KeyframeAnimation
+    │   └── renderer/
+    │       ├── HostileVampireRenderState.java       ← extends LivingEntityRenderState
+    │       └── VampireEntityRenderer.java           ← MobRenderer 3 type params
+    ├── entity/HostileVampireEntity.java        ← mob hostil, AnimationState, spawn rules
     ├── essence/BloodEssenceRegistry.java       ← essência base por EntityType
     ├── event/
     │   ├── BloodDrainStartEvent.java
@@ -171,13 +233,19 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   ├── VampireTransformEvent.java
     │   ├── VampireRankChangedEvent.java
     │   ├── VampireAscensionEvent.java
-    │   └── VampireAgeMilestoneEvent.java
+    │   ├── VampireAgeMilestoneEvent.java
+    │   ├── VampireInfectionStartEvent.java     ← ao beber o VampireBloodVial
+    │   ├── VampireInfectionExpireEvent.java    ← ao expirar sem morrer
+    │   └── PlayerVampireTransformationEvent.java ← ao morrer com infecção (cancellable)
     ├── event/handler/VampireEventHandler.java
     ├── feeding/
     │   ├── BloodDrainAction.java               ← bloodAccumulator + essenceAccumulator (fracionários)
     │   └── DrainableEntityRegistry.java
+    ├── effect/
+    │   └── VampireInfectionEffect.java         ← MobEffect + IPendingTransformation
     ├── item/
     │   ├── BloodVialItem.java
+    │   ├── VampireBloodVialItem.java           ← item de infecção (transforma ao morrer)
     │   └── WoodenStakeItem.java
     ├── network/
     │   ├── SyncVampireDataPacket.java
@@ -194,12 +262,31 @@ src/main/java/com/nashgoldd/mysticrealm/
 src/main/resources/assets/mysticrealm/lang/en_us.json
   ← traduções de items, keybinds, death messages E config screen (todas as chaves config)
 
+src/main/resources/assets/mysticrealm/items/
+  ← OBRIGATÓRIO no MC 26.1.2 — cada item precisa de um arquivo item_id.json aqui
+  ← Formato: { "model": { "type": "minecraft:model", "model": "mysticrealm:item/item_id" } }
+  ← SEM esse arquivo o item não renderiza (sem fallback para models/item/ nesta versão)
+  ← Arquivos: blood_vial.json, wooden_stake.json, vampire_blood_vial.json, hostile_vampire_spawn_egg.json
+
+src/main/resources/assets/mysticrealm/models/item/
+  ← Define geometria/textura do item (ainda necessário, referenciado pelo arquivo em items/)
+  ← Formato igual às versões anteriores: { "parent": "item/generated", "textures": { "layer0": "..." } }
+
+src/main/resources/assets/mysticrealm/textures/mob_effect/
+  ← Ícones de efeito de poção — DEVE ser 18x18 px (obrigatório, valores menores não funcionam)
+  ← Nome do arquivo = nome do efeito no registro (ex: vampire_infection.png)
+
+src/main/resources/data/minecraft/tags/entity_type/burn_in_daylight.json
+  ← adiciona mysticrealm:hostile_vampire à tag vanilla (replace: false)
+
 ---
 
 APIs CRÍTICAS DO MC 26.x / NEOFORGE 26.x:
 
 IDENTIFICADORES:
 - Identifier.fromNamespaceAndPath(ns, path)  ← não ResourceLocation
+- A classe é net.minecraft.resources.Identifier (renomeada de ResourceLocation no mapping transformado)
+- Métodos getTextureLocation(), ModelLayerLocation(), etc. também usam Identifier
 
 ATTACHMENTS:
 - AttachmentType.builder(Supplier).serialize(MapCodec).copyOnDeath().build()
@@ -229,7 +316,7 @@ EFEITOS:
 - addEffect(), removeEffect(), hasEffect(), getEffect() — todos aceitam Holder<MobEffect>
 
 VERIFICAÇÕES DE MUNDO:
-- level.isBrightOutside()  ← substitui isNight() (MC 26.x)
+- level.isBrightOutside()  ← substitui isDay()/isNight() (MC 26.x)
 - level.dimensionType().hasSkyLight() para verificar dimensão com céu
 - ServerLevel via cast: ((ServerLevel) player.level()) — NÃO player.serverLevel() (não existe)
 
@@ -242,9 +329,63 @@ RENDERIZAÇÃO (HUD):
   - spriteId via Identifier.fromNamespaceAndPath(MODID, "nome") — sem prefixo de pasta
   - Arquivos em textures/gui/sprites/nome.png
 
+RENDERIZAÇÃO DE ENTIDADES (MC 26.x — sistema completamente novo):
+- EntityModel<T extends EntityRenderState> — model parametrizado por RenderState, NÃO pela entidade
+  - HierarchicalModel NÃO EXISTE mais — usar EntityModel diretamente
+  - renderToBuffer() é final em Model — NÃO sobrescrever
+  - setupAnim(RenderState) — parâmetro único (não 6 floats + entidade)
+  - resetPose() chamado automaticamente pelo super.setupAnim()
+- MobRenderer<T extends Mob, S extends LivingEntityRenderState, M extends EntityModel<? super S>>
+  - 3 type parameters obrigatórios
+  - getTextureLocation(RenderState) — parâmetro é RenderState, não Entity
+  - createRenderState() → new MinhaRenderState()
+  - extractRenderState(Entity, RenderState, float) → copiar AnimationStates via .copyFrom()
+- RenderState pattern: criar classe extends LivingEntityRenderState com campos AnimationState
+  - AnimationState é net.minecraft.world.entity.AnimationState (NÃO client package)
+- Animações com KeyframeAnimation:
+  - AnimationDefinition.bake(ModelPart root) → KeyframeAnimation (baked no construtor do model)
+  - keyframeAnim.apply(AnimationState, float ageInTicks) — aplica a animação
+  - AnimationDefinition.Builder.withLength().looping().addAnimation()...build() — API inalterada
+- @OnlyIn(Dist.CLIENT) NÃO usar em classes — annotation não faz mais member-stripping em NeoForge 26.x
+
+REGISTRO DE ENTITY TYPES:
+- DeferredRegister.Entities (não DeferredRegister<EntityType<?>>)
+  - DeferredRegister.createEntities(MODID)
+  - ENTITY_TYPES.registerEntityType("id", Factory::new, MobCategory, builder -> builder.sized(...))
+  - O ResourceKey é gerado automaticamente — não chamar .build() manualmente
+- EntityAttributeCreationEvent → MOD bus (modEventBus.addListener)
+- RegisterSpawnPlacementsEvent → MOD bus (modEventBus.addListener) — NÃO NeoForge.EVENT_BUS
+- SpawnPlacementTypes.ON_GROUND (não SpawnPlacements.ON_GROUND)
+
+SPAWN EGGS:
+- DeferredSpawnEggItem NÃO EXISTE em NeoForge 26.x
+- Usar vanilla: SpawnEggItem + Item.Properties.spawnEgg(EntityType)
+  ex: ITEMS.registerItem("id", SpawnEggItem::new, p -> p.stacksTo(64).spawnEgg(MY_ENTITY.get()))
+
+QUEIMA SOLAR DE MOBS:
+- isSunBurnTick() é private em Mob — NÃO acessível de subclasses
+- Adicionar à tag data/minecraft/tags/entity_type/burn_in_daylight.json com "replace": false
+- Mob.aiStep() checa this.getType().is(EntityTypeTags.BURN_IN_DAYLIGHT) automaticamente
+- burnUndead() (private em Mob) gerencia capacete e igniteForSeconds(8.0F)
+
 ITENS:
 - DeferredRegister.createItems(MODID)
 - ITEMS.registerItem("id", MyItem::new, p -> p.stacksTo(1))
+- ASSETS OBRIGATÓRIOS (MC 26.1.2):
+  1. assets/mysticrealm/items/item_id.json        ← binding item → model (NOVO, obrigatório)
+  2. assets/mysticrealm/models/item/item_id.json  ← geometria/textura (igual antes)
+  3. assets/mysticrealm/textures/item/item_id.png ← textura 16x16
+  - Sem o arquivo em items/, o item fica invisível/sem modelo no jogo
+
+MOB EFFECTS (MobEffect customizado):
+- DeferredRegister.create(Registries.MOB_EFFECT, MODID)
+- EFFECTS.register("id", MinhaEffect::new) → DeferredHolder<MobEffect, MinhaEffect>
+- Registrar no MysticRealm.java via EFFECTS.register(modEventBus)
+- Ícone: assets/mysticrealm/textures/mob_effect/id.png — DEVE ser 18x18 px
+- MobEffect(MobEffectCategory, int color) — construtor
+- Para efeitos passivos (sem tick behavior): não sobrescrever shouldApplyEffectTickThisIteration
+  (método não existe nesta versão — NÃO usar @Override)
+- Para transformações pendentes: implementar IPendingTransformation
 
 SONS:
 - SoundEvents com tipo SoundEvent: usar diretamente em playSound()
@@ -276,6 +417,13 @@ CONFIG SCREEN (NeoForge):
 - Formato de acumuladores fracionários (padrão do projeto):
   - bloodAccumulator / essenceAccumulator em BloodDrainAction (Map<UUID, Float/Double>)
   - Acumula valor fracionário por tick e só aplica inteiros — evita arredondamento para zero
+- Config em disco (.toml) desatualizado causa loop no FileWatcher — deletar o arquivo para regenerar
+
+BUSES (MOD vs NeoForge):
+- MOD bus: EntityAttributeCreationEvent, RegisterSpawnPlacementsEvent, RegisterKeyMappingsEvent,
+           EntityRenderersEvent, RegisterLayerDefinitions, RegisterPayloadHandlersEvent
+- NeoForge bus: PlayerTickEvent, LivingDamageEvent, EntityTickEvent, RegisterCommandsEvent,
+                PlayerLoggedOutEvent, RenderGuiEvent, ClientTickEvent
 
 ---
 
@@ -287,8 +435,9 @@ PROBLEMAS CONHECIDOS DO IDE (VS CODE):
 ---
 
 PRÓXIMAS FASES PLANEJADAS:
-- Fase 4b: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
+- Fase 4d: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
 - Fase 5: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
+  - Reutilizar IPendingTransformation para WerewolfCurseEffect (mesmo fluxo de morte/transformação)
   - Reutilizar ChannelAction para habilidades ativas do lobisomem
 - Fase 6: Bruxaria (RaceResource MANA, feitiços, crafting sobrenatural)
   - Reutilizar ChannelAction para lançamento de feitiços

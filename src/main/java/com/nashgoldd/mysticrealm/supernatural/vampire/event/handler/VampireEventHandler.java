@@ -4,6 +4,8 @@ import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.network.MysticDamageTypes;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.registry.MysticEffects;
+import com.nashgoldd.mysticrealm.supernatural.transformation.IPendingTransformation;
 import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireRank;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
@@ -40,7 +42,13 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 public class VampireEventHandler {
+
+    private final Set<UUID> infectedPlayers = new HashSet<>();
 
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
@@ -48,7 +56,11 @@ public class VampireEventHandler {
         Level level = player.level();
 
         if (level.isClientSide() || !(player instanceof ServerPlayer sp)) return;
-        if (!VampireService.isVampire(player)) return;
+
+        if (!VampireService.isVampire(sp)) {
+            tickInfection(sp);
+            return;
+        }
 
         VampireData data = VampireService.getData(player);
 
@@ -66,6 +78,24 @@ public class VampireEventHandler {
         tickSunlight(sp, data, level);
         tickPassiveEffects(sp);
         tickNearDeath(sp, data);
+    }
+
+    private void tickInfection(ServerPlayer player) {
+        UUID uuid = player.getUUID();
+        MobEffectInstance infection = player.getEffect(MysticEffects.VAMPIRE_INFECTION);
+
+        if (infection != null) {
+            infectedPlayers.add(uuid);
+            // Aviso quando restar menos de 30 segundos
+            if (infection.getDuration() <= 600 && infection.getDuration() > 590) {
+                player.sendSystemMessage(Component.translatable("mysticrealm.vampire.infection.fading"));
+            }
+        } else if (infectedPlayers.remove(uuid)) {
+            // Efeito acabou naturalmente — o jogador sobreviveu ao tempo limite
+            if (MysticEffects.VAMPIRE_INFECTION.get() instanceof IPendingTransformation pending) {
+                pending.onExpire(player);
+            }
+        }
     }
 
     private void tickBloodDrain(ServerPlayer player) {
@@ -207,7 +237,24 @@ public class VampireEventHandler {
     @SubscribeEvent
     public void onLivingDeath(LivingDeathEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
-        if (!VampireService.isVampire(player)) return;
+
+        // Transformação pendente — jogador ainda não é vampiro mas tem efeito de infecção
+        if (!VampireService.isVampire(player)) {
+            for (MobEffectInstance instance : player.getActiveEffects()) {
+                if (instance.getEffect().value() instanceof IPendingTransformation pending) {
+                    boolean isHardcore = player.level() instanceof ServerLevel sl
+                        && sl.getLevelData().isHardcore();
+                    if (isHardcore && !MysticConfig.ENABLE_HARDCORE_TRANSFORMATION.get()) return;
+                    event.setCanceled(true);
+                    infectedPlayers.remove(player.getUUID());
+                    pending.applyTransformation(player, event.getSource());
+                    return;
+                }
+            }
+            return;
+        }
+
+        // Imortalidade vampírica
         if (!MysticConfig.VAMPIRE_IMMORTALITY_ENABLED.get()) return;
 
         if (VampireWeaknessRegistry.isLethalToVampire(event.getSource())) return;
@@ -270,6 +317,7 @@ public class VampireEventHandler {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         ChannelService.clearOnDisconnect(player);
         BloodDrainAction.clearAccumulator(player.getUUID());
+        infectedPlayers.remove(player.getUUID());
     }
 
     @SubscribeEvent

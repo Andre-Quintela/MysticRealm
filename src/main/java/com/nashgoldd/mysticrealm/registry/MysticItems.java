@@ -2,6 +2,7 @@ package com.nashgoldd.mysticrealm.registry;
 
 import com.nashgoldd.mysticrealm.MysticRealm;
 import com.nashgoldd.mysticrealm.supernatural.vampire.item.BloodVialItem;
+import com.nashgoldd.mysticrealm.supernatural.vampire.item.VampireBloodVialItem;
 import com.nashgoldd.mysticrealm.supernatural.vampire.item.WoodenStakeItem;
 import net.minecraft.world.item.SpawnEggItem;
 import net.neoforged.bus.api.IEventBus;
@@ -18,6 +19,9 @@ public final class MysticItems {
 
     public static final DeferredItem<BloodVialItem> BLOOD_VIAL =
         ITEMS.registerItem("blood_vial", BloodVialItem::new, p -> p.stacksTo(16));
+
+    public static final DeferredItem<VampireBloodVialItem> VAMPIRE_BLOOD_VIAL =
+        ITEMS.registerItem("vampire_blood_vial", VampireBloodVialItem::new, p -> p.stacksTo(16));
 
     public static final DeferredItem<SpawnEggItem> HOSTILE_VAMPIRE_SPAWN_EGG =
         ITEMS.registerItem("hostile_vampire_spawn_egg",

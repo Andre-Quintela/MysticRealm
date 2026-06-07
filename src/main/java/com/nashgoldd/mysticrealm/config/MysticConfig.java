@@ -22,6 +22,11 @@ public final class MysticConfig {
     public static final ModConfigSpec.DoubleValue VAMPIRE_MINIMUM_HEALTH;
     public static final ModConfigSpec.IntValue VAMPIRE_NEAR_DEATH_DEBUFF_DURATION;
 
+    // ── Infecção vampírica ────────────────────────────────────────────────────
+
+    public static final ModConfigSpec.IntValue    INFECTION_DURATION_SECONDS;
+    public static final ModConfigSpec.BooleanValue ENABLE_HARDCORE_TRANSFORMATION;
+
     // ── Pool de sangue das entidades ──────────────────────────────────────────
 
     public static final ModConfigSpec.DoubleValue ENTITY_BLOOD_REGEN_FRACTION;
@@ -201,6 +206,18 @@ public final class MysticConfig {
             .defineInRange("vampireSpawnMaxGroup", 2, 1, 8);
 
         BUILDER.pop(); // spawn
+
+        BUILDER.comment("Configurações de infecção vampírica (transformação por morte)").push("infection");
+
+        INFECTION_DURATION_SECONDS = BUILDER
+            .translation("mysticrealm.configuration.infection.infectionDurationSeconds")
+            .defineInRange("infectionDurationSeconds", 180, 10, 3600);
+
+        ENABLE_HARDCORE_TRANSFORMATION = BUILDER
+            .translation("mysticrealm.configuration.infection.enableHardcoreTransformation")
+            .define("enableHardcoreTransformation", true);
+
+        BUILDER.pop(); // infection
 
         BUILDER.pop(); // vampire
 

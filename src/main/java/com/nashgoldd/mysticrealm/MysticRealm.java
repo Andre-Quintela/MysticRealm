@@ -5,6 +5,7 @@ import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.event.handler.PlayerEventHandler;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.registry.MysticEffects;
 import com.nashgoldd.mysticrealm.registry.MysticEntityTypes;
 import com.nashgoldd.mysticrealm.registry.MysticItems;
 import com.nashgoldd.mysticrealm.supernatural.vampire.entity.HostileVampireEntity;
@@ -28,6 +29,7 @@ public class MysticRealm {
 
     public MysticRealm(IEventBus modEventBus, ModContainer modContainer) {
         MysticAttachments.register(modEventBus);
+        MysticEffects.register(modEventBus);
         MysticItems.register(modEventBus);
         MysticEntityTypes.register(modEventBus);
 

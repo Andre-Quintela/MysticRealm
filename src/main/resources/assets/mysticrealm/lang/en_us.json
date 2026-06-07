@@ -79,9 +79,22 @@
   "mysticrealm.configuration.vampire.spawn.vampireSpawnMaxGroup": "Maximum Group Size",
   "mysticrealm.configuration.vampire.spawn.vampireSpawnMaxGroup.tooltip": "Maximum number of Hostile Vampires per spawn group. Changes require a restart.",
 
+  "mysticrealm.configuration.infection": "Vampiric Infection",
+  "mysticrealm.configuration.infection.infectionDurationSeconds": "Infection Duration (Seconds)",
+  "mysticrealm.configuration.infection.infectionDurationSeconds.tooltip": "Duration of the vampiric infection effect in seconds. The player must die within this time to become a vampire.",
+  "mysticrealm.configuration.infection.enableHardcoreTransformation": "Enable Hardcore Transformation",
+  "mysticrealm.configuration.infection.enableHardcoreTransformation.tooltip": "If true, players in Hardcore mode will be transformed into vampires instead of dying permanently.",
+
+  "effect.mysticrealm.vampire_infection": "Vampiric Infection",
+
+  "mysticrealm.vampire.infection.start": "Your veins begin to burn with an ancient curse...",
+  "mysticrealm.vampire.infection.fading": "The curse is fading...",
+  "mysticrealm.vampire.transformation.complete": "You have embraced immortality.",
+
   "entity.mysticrealm.hostile_vampire": "Hostile Vampire",
   "item.mysticrealm.wooden_stake": "Wooden Stake",
   "item.mysticrealm.blood_vial": "Blood Vial",
+  "item.mysticrealm.vampire_blood_vial": "Vampire Blood Vial",
   "item.mysticrealm.hostile_vampire_spawn_egg": "Hostile Vampire Spawn Egg",
   "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight",
   "key.category.mysticrealm.mysticrealm": "Mystic Realm",
