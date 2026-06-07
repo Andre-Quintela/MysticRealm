@@ -8,6 +8,7 @@ import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.registry.MysticEffects;
 import com.nashgoldd.mysticrealm.registry.MysticEntityTypes;
 import com.nashgoldd.mysticrealm.registry.MysticItems;
+import com.nashgoldd.mysticrealm.registry.MysticParticles;
 import com.nashgoldd.mysticrealm.supernatural.vampire.entity.HostileVampireEntity;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.handler.VampireEventHandler;
 import com.nashgoldd.mysticrealm.util.MysticRealmLogger;
@@ -32,6 +33,7 @@ public class MysticRealm {
         MysticEffects.register(modEventBus);
         MysticItems.register(modEventBus);
         MysticEntityTypes.register(modEventBus);
+        MysticParticles.register(modEventBus);
 
         modEventBus.addListener(MysticNetwork::registerPayloads);
         modEventBus.addListener(this::onAttributeCreate);

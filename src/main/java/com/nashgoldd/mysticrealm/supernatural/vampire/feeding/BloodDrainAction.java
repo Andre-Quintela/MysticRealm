@@ -14,7 +14,7 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainTickEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodPoolChangedEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.EntityExsanguinatedEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireProgressionService;
-import net.minecraft.core.particles.ParticleTypes;
+import com.nashgoldd.mysticrealm.registry.MysticParticles;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -66,7 +66,7 @@ public final class BloodDrainAction implements ChannelAction {
         ServerLevel sl = (ServerLevel) actor.level();
         Vec3 neck = target.getEyePosition().subtract(0, 0.3, 0);
 
-        sl.sendParticles(ParticleTypes.HEART,
+        sl.sendParticles(MysticParticles.BLOOD_DRAIN.get(),
             neck.x, neck.y, neck.z, 3, 0.15, 0.1, 0.15, 0.0);
         sl.playSound(null, actor.blockPosition(), SoundEvents.WITCH_DRINK,
             SoundSource.PLAYERS, 0.5f, 0.5f);

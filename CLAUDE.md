@@ -57,7 +57,7 @@ Fase 3 — Sistema de Alimentação Vampírica (Drenagem de Sangue):
   - tick() valida: alvo vivo, distância ≤2.5, dot product ≥0.85 (vampiro olhando para alvo)
 - BloodDrainAction (implements ChannelAction — singleton INSTANCE)
   - 60 ticks (3s) de duração, 100 ticks (5s) de cooldown
-  - onTick(): a cada 5 ticks — partículas HEART no pescoço + SoundEvents.WITCH_DRINK
+  - onTick(): a cada 5 ticks — partícula customizada MysticParticles.BLOOD_DRAIN no pescoço + SoundEvents.WITCH_DRINK
   - onComplete(): +4 food units vampiro, Weakness I (200t) vítima,
     aldeões ganham Slowness I + som de sofrimento
   - bloodAccumulator (Map<UUID,Float>): food fracionário acumulado por vampiro
@@ -188,6 +188,7 @@ src/main/java/com/nashgoldd/mysticrealm/
 │   ├── MysticAttachments.java                  ← SUPERNATURAL_DATA + VAMPIRE_DATA + ENTITY_BLOOD
 │   ├── MysticEffects.java                      ← DeferredRegister<MobEffect> + VAMPIRE_INFECTION
 │   ├── MysticItems.java
+│   ├── MysticParticles.java                    ← DeferredRegister<ParticleType<?>> + BLOOD_DRAIN
 │   └── MysticEntityTypes.java                  ← DeferredRegister.Entities + HOSTILE_VAMPIRE
 ├── supernatural/
 │   ├── race/RaceType.java
@@ -213,6 +214,7 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   ├── ClientDrainState.java
     │   ├── animation/VampireEntityAnimations.java  ← idle, walk, meleeAttack, rangedAttack
     │   ├── model/VampireEntityModel.java           ← EntityModel<RenderState> + KeyframeAnimation
+    │   ├── particle/BloodDrainParticle.java        ← SingleQuadParticle + Provider (drenagem de sangue)
     │   └── renderer/
     │       ├── HostileVampireRenderState.java       ← extends LivingEntityRenderState
     │       └── VampireEntityRenderer.java           ← MobRenderer 3 type params
@@ -275,6 +277,14 @@ src/main/resources/assets/mysticrealm/models/item/
 src/main/resources/assets/mysticrealm/textures/mob_effect/
   ← Ícones de efeito de poção — DEVE ser 18x18 px (obrigatório, valores menores não funcionam)
   ← Nome do arquivo = nome do efeito no registro (ex: vampire_infection.png)
+
+src/main/resources/assets/mysticrealm/particles/particle_id.json
+  ← descriptor de partícula customizada — lista as texturas usadas pelo SpriteSet
+  ← Formato: { "textures": ["namespace:sprite_name"] }
+  ← Sprite é resolvida em textures/particle/sprite_name.png do atlas de partículas
+
+src/main/resources/assets/mysticrealm/textures/particle/
+  ← Texturas de partículas customizadas (PNG, qualquer tamanho — recomendado 16x16 ou 32x32)
 
 src/main/resources/data/minecraft/tags/entity_type/burn_in_daylight.json
   ← adiciona mysticrealm:hostile_vampire à tag vanilla (replace: false)
@@ -377,6 +387,42 @@ ITENS:
   3. assets/mysticrealm/textures/item/item_id.png ← textura 16x16
   - Sem o arquivo em items/, o item fica invisível/sem modelo no jogo
 
+PARTÍCULAS CUSTOMIZADAS (MC 26.x — API completamente diferente de versões anteriores):
+- TextureSheetParticle NÃO EXISTE — substituto é SingleQuadParticle (net.minecraft.client.particle)
+- SingleQuadParticle é abstract — deve implementar getLayer() retornando SingleQuadParticle.Layer
+  Layers disponíveis: OPAQUE, TRANSLUCENT, OPAQUE_TERRAIN, TRANSLUCENT_TERRAIN, OPAQUE_ITEMS, TRANSLUCENT_ITEMS
+  → usar TRANSLUCENT para partículas com transparência (PNG com canal alpha)
+- Construtor: super(level, x, y, z, xa, ya, za, sprite) — recebe TextureAtlasSprite diretamente
+  NÃO existe pickSprite(SpriteSet) — o sprite vem do SpriteSet.get(random) no Provider
+- Campos herdados de Particle: lifetime, gravity, friction, hasPhysics, age, xd, yd, zd
+  gravity negativo = flutua para cima (yd += 0.04 * |gravity| por tick)
+- Métodos herdados de SingleQuadParticle: setAlpha(float), setColor(r,g,b), scale(float)
+  NÃO existe getRenderType() — usar getLayer() obrigatoriamente
+  getGroup() em SingleQuadParticle retorna ParticleRenderType.SINGLE_QUADS automaticamente (não sobrescrever)
+- ParticleRenderType em MC 26.x é um record (não enum) — constantes: SINGLE_QUADS, ITEM_PICKUP, etc.
+- Provider pattern correto:
+  ```java
+  public static class Provider implements ParticleProvider<SimpleParticleType> {
+      private final SpriteSet sprites;
+      public Provider(SpriteSet sprites) { this.sprites = sprites; }
+      @Override
+      public Particle createParticle(SimpleParticleType type, ClientLevel level,
+          double x, double y, double z, double xAux, double yAux, double zAux, RandomSource random) {
+          return new MinhaParticle(level, x, y, z, sprites.get(random));
+      }
+  }
+  ```
+  ATENÇÃO: createParticle tem RandomSource random como ÚLTIMO parâmetro (adicionado no MC 26.x)
+- Registro (server-side): DeferredRegister.create(Registries.PARTICLE_TYPE, MODID)
+  PARTICLE_TYPES.register("id", () -> new SimpleParticleType(false))
+  Registrar no MysticRealm.java via MysticParticles.register(modEventBus)
+- Registro (client-side): RegisterParticleProvidersEvent → MOD bus
+  event.registerSpriteSet(MysticParticles.BLOOD_DRAIN.get(), BloodDrainParticle.Provider::new)
+  Registrar via modEventBus.addListener() no @Mod(dist=CLIENT)
+- Assets obrigatórios:
+  1. assets/namespace/particles/particle_id.json → { "textures": ["namespace:sprite_name"] }
+  2. assets/namespace/textures/particle/sprite_name.png → textura da partícula
+
 MOB EFFECTS (MobEffect customizado):
 - DeferredRegister.create(Registries.MOB_EFFECT, MODID)
 - EFFECTS.register("id", MinhaEffect::new) → DeferredHolder<MobEffect, MinhaEffect>
@@ -421,7 +467,8 @@ CONFIG SCREEN (NeoForge):
 
 BUSES (MOD vs NeoForge):
 - MOD bus: EntityAttributeCreationEvent, RegisterSpawnPlacementsEvent, RegisterKeyMappingsEvent,
-           EntityRenderersEvent, RegisterLayerDefinitions, RegisterPayloadHandlersEvent
+           EntityRenderersEvent, RegisterLayerDefinitions, RegisterPayloadHandlersEvent,
+           RegisterParticleProvidersEvent
 - NeoForge bus: PlayerTickEvent, LivingDamageEvent, EntityTickEvent, RegisterCommandsEvent,
                 PlayerLoggedOutEvent, RenderGuiEvent, ClientTickEvent
 

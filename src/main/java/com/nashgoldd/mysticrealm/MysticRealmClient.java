@@ -1,10 +1,13 @@
 package com.nashgoldd.mysticrealm;
 
 import com.nashgoldd.mysticrealm.registry.MysticEntityTypes;
+import com.nashgoldd.mysticrealm.registry.MysticParticles;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.VampireKeyBindings;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.model.VampireEntityModel;
+import com.nashgoldd.mysticrealm.supernatural.vampire.client.particle.BloodDrainParticle;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.renderer.VampireEntityRenderer;
 import com.nashgoldd.mysticrealm.util.MysticRealmLogger;
+import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -25,6 +28,7 @@ public class MysticRealmClient {
         modEventBus.addListener(VampireKeyBindings::register);
         modEventBus.addListener(MysticRealmClient::onRegisterRenderers);
         modEventBus.addListener(MysticRealmClient::onRegisterLayerDefinitions);
+        modEventBus.addListener(MysticRealmClient::onRegisterParticles);
     }
 
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
@@ -39,6 +43,10 @@ public class MysticRealmClient {
             VampireEntityModel.LAYER_LOCATION,
             VampireEntityModel::createBodyLayer
         );
+    }
+
+    private static void onRegisterParticles(RegisterParticleProvidersEvent event) {
+        event.registerSpriteSet(MysticParticles.BLOOD_DRAIN.get(), BloodDrainParticle.Provider::new);
     }
 
     @SubscribeEvent
