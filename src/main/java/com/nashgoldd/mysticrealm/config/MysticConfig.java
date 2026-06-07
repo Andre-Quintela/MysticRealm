@@ -31,6 +31,15 @@ public final class MysticConfig {
 
     // ── Progressão vampírica ──────────────────────────────────────────────────
 
+    // ── Spawn do vampiro hostil ───────────────────────────────────────────────
+
+    public static final ModConfigSpec.BooleanValue ENABLE_VAMPIRE_SPAWN;
+    public static final ModConfigSpec.IntValue     VAMPIRE_SPAWN_WEIGHT;
+    public static final ModConfigSpec.IntValue     VAMPIRE_SPAWN_MIN_GROUP;
+    public static final ModConfigSpec.IntValue     VAMPIRE_SPAWN_MAX_GROUP;
+
+    // ── Progressão vampírica ──────────────────────────────────────────────────
+
     public static final ModConfigSpec.BooleanValue ENABLE_VAMPIRE_PROGRESSION;
     public static final ModConfigSpec.BooleanValue TRACK_VAMPIRE_AGE;
 
@@ -172,6 +181,26 @@ public final class MysticConfig {
             .defineInRange("princeToSovereignAgeHours", 250L, 0L, Long.MAX_VALUE);
 
         BUILDER.pop(); // progression
+
+        BUILDER.comment("Configurações de spawn do vampiro hostil").push("spawn");
+
+        ENABLE_VAMPIRE_SPAWN = BUILDER
+            .translation("mysticrealm.configuration.vampire.spawn.enableVampireSpawn")
+            .define("enableVampireSpawn", true);
+
+        VAMPIRE_SPAWN_WEIGHT = BUILDER
+            .translation("mysticrealm.configuration.vampire.spawn.vampireSpawnWeight")
+            .defineInRange("vampireSpawnWeight", 5, 1, 100);
+
+        VAMPIRE_SPAWN_MIN_GROUP = BUILDER
+            .translation("mysticrealm.configuration.vampire.spawn.vampireSpawnMinGroup")
+            .defineInRange("vampireSpawnMinGroup", 1, 1, 8);
+
+        VAMPIRE_SPAWN_MAX_GROUP = BUILDER
+            .translation("mysticrealm.configuration.vampire.spawn.vampireSpawnMaxGroup")
+            .defineInRange("vampireSpawnMaxGroup", 2, 1, 8);
+
+        BUILDER.pop(); // spawn
 
         BUILDER.pop(); // vampire
 

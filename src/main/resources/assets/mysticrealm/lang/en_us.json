@@ -68,8 +68,21 @@
   "mysticrealm.configuration.vampire.progression.princeToSovereignAgeHours": "Prince of Night → Blood Sovereign Min Age (h)",
   "mysticrealm.configuration.vampire.progression.princeToSovereignAgeHours.tooltip": "Minimum vampire age in hours to ascend from Prince of Night to Blood Sovereign.",
 
+  "mysticrealm.configuration.vampire.spawn": "Hostile Vampire Spawn",
+  "mysticrealm.configuration.spawn": "Hostile Vampire Spawn",
+  "mysticrealm.configuration.vampire.spawn.enableVampireSpawn": "Enable Vampire Spawning",
+  "mysticrealm.configuration.vampire.spawn.enableVampireSpawn.tooltip": "Whether Hostile Vampires spawn naturally in the world. Disable/enable takes effect at runtime.",
+  "mysticrealm.configuration.vampire.spawn.vampireSpawnWeight": "Spawn Weight",
+  "mysticrealm.configuration.vampire.spawn.vampireSpawnWeight.tooltip": "Relative spawn weight (Enderman is ~10, Zombie is ~100). Changes require a restart.",
+  "mysticrealm.configuration.vampire.spawn.vampireSpawnMinGroup": "Minimum Group Size",
+  "mysticrealm.configuration.vampire.spawn.vampireSpawnMinGroup.tooltip": "Minimum number of Hostile Vampires per spawn group. Changes require a restart.",
+  "mysticrealm.configuration.vampire.spawn.vampireSpawnMaxGroup": "Maximum Group Size",
+  "mysticrealm.configuration.vampire.spawn.vampireSpawnMaxGroup.tooltip": "Maximum number of Hostile Vampires per spawn group. Changes require a restart.",
+
+  "entity.mysticrealm.hostile_vampire": "Hostile Vampire",
   "item.mysticrealm.wooden_stake": "Wooden Stake",
   "item.mysticrealm.blood_vial": "Blood Vial",
+  "item.mysticrealm.hostile_vampire_spawn_egg": "Hostile Vampire Spawn Egg",
   "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight",
   "key.category.mysticrealm.mysticrealm": "Mystic Realm",
   "key.mysticrealm.drain_blood": "Drain Blood"
