@@ -15,6 +15,7 @@ Stack:
 - NeoForge 26.1.2.70-beta
 - Java 25
 - ModDevGradle
+- GeckoLib 5.5.1 (com.geckolib:geckolib-neoforge-26.1.2:5.5.1)
 
 ---
 
@@ -165,6 +166,24 @@ Fase 4c — Mob Hostil: HostileVampireEntity:
 - RegisterSpawnPlacementsEvent → MOD bus (não NeoForge.EVENT_BUS)
 - SpawnPlacementTypes.ON_GROUND (não SpawnPlacements.ON_GROUND)
 
+Fase 4d — Obelisco Vampírico (VampireObeliskBlock):
+- VampireObeliskBlock (extends BaseEntityBlock): bloco interagível com modelo GeckoLib
+  - codec() obrigatório: private static final MapCodec<VampireObeliskBlock> CODEC = simpleCodec(VampireObeliskBlock::new)
+  - getRenderShape() → RenderShape.INVISIBLE (GeckoLib renderiza via BlockEntityRenderer)
+  - useWithoutItem(): level instanceof ServerLevel → envia OpenObeliskScreenPacket → return SUCCESS_SERVER
+    lado cliente: return InteractionResult.SUCCESS (sem servidor)
+- VampireObeliskBlockEntity (extends BlockEntity implements GeoBlockEntity): anima o obelisco
+- VampireObeliskRenderer (extends GeoBlockRenderer<VampireObeliskBlockEntity, BlockEntityRenderState>)
+  - Usa DefaultedBlockGeoModel para resolver paths automaticamente
+- OpenObeliskScreenPacket (S→C, sem campos): aciona abertura da GUI no cliente
+- VampireObeliskScreen (extends Screen): GUI com progressão vampírica + lore
+  - Vampiros: rank atual, essência, próximo rank, requisitos
+  - Todos: lore + instrução sobre VampireBloodVial para não-vampiros
+- Registros:
+  - MysticBlocks (DeferredRegister.createBlocks) + MysticBlockEntities (DeferredRegister<BlockEntityType<?>>)
+  - MysticItems: BlockItem referenciando MysticBlocks.VAMPIRE_OBELISK
+  - Ordem em MysticRealm.java: MysticBlocks → MysticBlockEntities → demais registros
+
 ---
 
 ESTRUTURA DE PACOTES:
@@ -182,12 +201,14 @@ src/main/java/com/nashgoldd/mysticrealm/
 │   ├── MysticNetwork.java                      ← playToClient + playToServer + syncDrainToClient() + syncVampireProgressionToClient()
 │   ├── MysticDamageTypes.java
 │   ├── SyncPlayerDataPacket.java               ← apenas race
-│   ├── ClientPacketHandlers.java               ← handleSyncVampireData + handleSyncDrainState + handleSyncVampireProgression
+│   ├── ClientPacketHandlers.java               ← handleSyncVampireData + handleSyncDrainState + handleSyncVampireProgression + handleOpenObeliskScreen
 │   └── ServerPacketHandlers.java               ← handleRequestDrain + handleCancelDrain
 ├── registry/
 │   ├── MysticAttachments.java                  ← SUPERNATURAL_DATA + VAMPIRE_DATA + ENTITY_BLOOD
+│   ├── MysticBlocks.java                       ← DeferredRegister.createBlocks + VAMPIRE_OBELISK
+│   ├── MysticBlockEntities.java                ← DeferredRegister<BlockEntityType<?>> + VAMPIRE_OBELISK
 │   ├── MysticEffects.java                      ← DeferredRegister<MobEffect> + VAMPIRE_INFECTION
-│   ├── MysticItems.java
+│   ├── MysticItems.java                        ← inclui BlockItem do VAMPIRE_OBELISK
 │   ├── MysticParticles.java                    ← DeferredRegister<ParticleType<?>> + BLOOD_DRAIN
 │   └── MysticEntityTypes.java                  ← DeferredRegister.Entities + HOSTILE_VAMPIRE
 ├── supernatural/
@@ -207,6 +228,9 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   ├── VampireData.java                    ← +rank, bloodEssence, vampireAgeTicks, ascensionCount
     │   └── EntityBloodData.java                ← pool de sangue por entidade
     ├── balance/BloodBalance.java               ← constantes de balanço de drenagem
+    ├── block/
+    │   ├── VampireObeliskBlock.java            ← BaseEntityBlock + GeckoLib + GUI via packet
+    │   └── entity/VampireObeliskBlockEntity.java ← GeoBlockEntity + AnimationController
     ├── client/
     │   ├── VampireHudOverlay.java              ← ícones de sangue + rank/essência/idade + barra de alvo
     │   ├── VampireKeyBindings.java
@@ -215,9 +239,11 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   ├── animation/VampireEntityAnimations.java  ← idle, walk, meleeAttack, rangedAttack
     │   ├── model/VampireEntityModel.java           ← EntityModel<RenderState> + KeyframeAnimation
     │   ├── particle/BloodDrainParticle.java        ← SingleQuadParticle + Provider (drenagem de sangue)
-    │   └── renderer/
-    │       ├── HostileVampireRenderState.java       ← extends LivingEntityRenderState
-    │       └── VampireEntityRenderer.java           ← MobRenderer 3 type params
+    │   ├── renderer/
+    │   │   ├── HostileVampireRenderState.java       ← extends LivingEntityRenderState
+    │   │   ├── VampireEntityRenderer.java           ← MobRenderer 3 type params
+    │   │   └── VampireObeliskRenderer.java          ← GeoBlockRenderer (GeckoLib 5.x)
+    │   └── screen/VampireObeliskScreen.java         ← GUI de progressão + lore
     ├── entity/HostileVampireEntity.java        ← mob hostil, AnimationState, spawn rules
     ├── essence/BloodEssenceRegistry.java       ← essência base por EntityType
     ├── event/
@@ -254,7 +280,8 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   ├── SyncVampireProgressionPacket.java   ← rank, bloodEssence, vampireAgeTicks, ascensionCount
     │   ├── RequestBloodDrainPacket.java
     │   ├── CancelBloodDrainPacket.java
-    │   └── SyncDrainStatePacket.java
+    │   ├── SyncDrainStatePacket.java
+    │   └── OpenObeliskScreenPacket.java        ← S→C, sem campos, StreamCodec.unit()
     ├── progression/
     │   ├── VampireRank.java                    ← enum 7 estágios
     │   └── VampireProgressionService.java
@@ -268,7 +295,7 @@ src/main/resources/assets/mysticrealm/items/
   ← OBRIGATÓRIO no MC 26.1.2 — cada item precisa de um arquivo item_id.json aqui
   ← Formato: { "model": { "type": "minecraft:model", "model": "mysticrealm:item/item_id" } }
   ← SEM esse arquivo o item não renderiza (sem fallback para models/item/ nesta versão)
-  ← Arquivos: blood_vial.json, wooden_stake.json, vampire_blood_vial.json, hostile_vampire_spawn_egg.json
+  ← Arquivos: blood_vial.json, wooden_stake.json, vampire_blood_vial.json, hostile_vampire_spawn_egg.json, vampire_obelisk.json
 
 src/main/resources/assets/mysticrealm/models/item/
   ← Define geometria/textura do item (ainda necessário, referenciado pelo arquivo em items/)
@@ -285,6 +312,17 @@ src/main/resources/assets/mysticrealm/particles/particle_id.json
 
 src/main/resources/assets/mysticrealm/textures/particle/
   ← Texturas de partículas customizadas (PNG, qualquer tamanho — recomendado 16x16 ou 32x32)
+
+src/main/resources/assets/mysticrealm/geckolib/models/block/
+  ← Modelos GeckoLib (.geo.json) de blocos — GeckoLib 5.x lê APENAS dessa pasta
+  ← NÃO usar geo/ (caminho legado ignorado em 5.x sem aviso claro)
+
+src/main/resources/assets/mysticrealm/geckolib/animations/block/
+  ← Animações GeckoLib (.animation.json) de blocos
+  ← Padrão: vampire_obelisk.animation.json com { "format_version": "1.8.0", "animations": {...} }
+
+src/main/resources/assets/mysticrealm/textures/block/
+  ← Texturas de blocos (incluindo a textura do modelo GeckoLib — caminho normal do MC)
 
 src/main/resources/data/minecraft/tags/entity_type/burn_in_daylight.json
   ← adiciona mysticrealm:hostile_vampire à tag vanilla (replace: false)
@@ -311,6 +349,7 @@ REDE:
 - ClientPacketDistributor.sendToServer(payload)            ← cliente → servidor
   (net.neoforged.neoforge.client.network.ClientPacketDistributor)
 - Handlers no cliente: ctx.enqueueWork(() -> { ... })
+- Pacote sem campos: StreamCodec.unit(new MeuPacket()) com tipo RegistryFriendlyByteBuf (não ByteBuf)
 
 PERMISSÕES:
 - src.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)  ← não hasPermission(2)
@@ -329,6 +368,30 @@ VERIFICAÇÕES DE MUNDO:
 - level.isBrightOutside()  ← substitui isDay()/isNight() (MC 26.x)
 - level.dimensionType().hasSkyLight() para verificar dimensão com céu
 - ServerLevel via cast: ((ServerLevel) player.level()) — NÃO player.serverLevel() (não existe)
+- level.isClientSide tem acesso PRIVADO em Level — usar level instanceof ServerLevel em vez disso
+  ex: if (level instanceof ServerLevel serverLevel) { ... } // lado servidor
+      else { ... } // lado cliente
+
+INTERAÇÃO COM BLOCOS (MC 26.x):
+- InteractionResult.sidedSuccess() NÃO EXISTE — foi removido
+- Substituto:
+  - Lado servidor: return InteractionResult.SUCCESS_SERVER  (SwingSource.SERVER)
+  - Lado cliente:  return InteractionResult.SUCCESS         (SwingSource.CLIENT)
+- InteractionResult é uma sealed interface com records: Success, Fail, Pass, TryEmptyHandInteraction
+- useWithoutItem() recebe (BlockState, Level, BlockPos, Player, BlockHitResult)
+
+BLOCOS COM BLOCK ENTITY (MC 26.x):
+- BaseEntityBlock.codec() é abstract — OBRIGATÓRIO implementar:
+  private static final MapCodec<MeuBlock> CODEC = simpleCodec(MeuBlock::new);
+  @Override public MapCodec<? extends BaseEntityBlock> codec() { return CODEC; }
+- BlockEntityType.Builder NÃO EXISTE em MC 26.x — usar construtor direto:
+  new BlockEntityType<>(MinhaBlockEntity::new, Set.of(MeuBlock.get()))
+- RenderShape possui apenas INVISIBLE e MODEL (ENTITYBLOCK_ANIMATED foi removido)
+  → usar RenderShape.INVISIBLE para blocos renderizados por GeckoLib/custom renderer
+- registerBlockEntityRenderer requer dois type params:
+  <T extends BlockEntity, S extends BlockEntityRenderState>
+  A factory é BlockEntityRendererProvider<T, S> (functional interface: context -> renderer)
+  ex: event.registerBlockEntityRenderer(MysticBlockEntities.VAMPIRE_OBELISK.get(), VampireObeliskRenderer::new)
 
 RENDERIZAÇÃO (HUD):
 - GuiGraphicsExtractor (não GuiGraphics — renomeado no MC 26.x)
@@ -338,6 +401,19 @@ RENDERIZAÇÃO (HUD):
 - Sprites GUI: blitSprite(RenderPipelines.GUI_TEXTURED, spriteId, x, y, w, h)
   - spriteId via Identifier.fromNamespaceAndPath(MODID, "nome") — sem prefixo de pasta
   - Arquivos em textures/gui/sprites/nome.png
+
+SCREENS (MC 26.x — método renomeado):
+- Screen.render() NÃO EXISTE em MC 26.x — foi renomeado para extractRenderState()
+- SEMPRE usar @Override — se o compilador rejeitar o @Override, a assinatura está errada
+- Sintoma do erro: tela abre e escurece (super é chamado), mas conteúdo não aparece
+- Assinatura correta:
+  @Override
+  public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+      super.extractRenderState(g, mouseX, mouseY, partialTick); // itera renderables
+      // ... desenhar conteúdo customizado aqui
+  }
+- extractBackground() → renderiza fundo escuro/panorama (chamado antes do extractRenderState)
+- extractRenderStateWithTooltipAndSubtitles() → método final, chamado pelo engine, chama extractBackground + extractRenderState
 
 RENDERIZAÇÃO DE ENTIDADES (MC 26.x — sistema completamente novo):
 - EntityModel<T extends EntityRenderState> — model parametrizado por RenderState, NÃO pela entidade
@@ -474,15 +550,108 @@ BUSES (MOD vs NeoForge):
 
 ---
 
+GECKOLIB 5.5.1 (com.geckolib — API completamente diferente das versões 4.x):
+
+DEPENDÊNCIA (build.gradle):
+```groovy
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'GeckoLib'
+                url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+            }
+        }
+        filter { includeGroupAndSubgroups('com.geckolib') }
+    }
+}
+dependencies {
+    implementation "com.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
+}
+```
+- GroupId mudou de software.bernie.geckolib para com.geckolib
+- exclusiveContent obrigatório para evitar conflito com outros repositórios Maven
+
+ESTRUTURA DE PACKAGES (GeckoLib 5.x):
+- com.geckolib.animatable.GeoBlockEntity          ← interface para BlockEntity animável
+- com.geckolib.animatable.manager.AnimatableManager ← NÃO com.geckolib.animation.AnimatableManager
+- com.geckolib.animatable.instance.AnimatableInstanceCache
+- com.geckolib.animation.AnimationController      ← mesmo package que antes
+- com.geckolib.animation.RawAnimation             ← mesmo package que antes
+- com.geckolib.animation.object.PlayState         ← NÃO com.geckolib.animation.PlayState
+- com.geckolib.model.DefaultedBlockGeoModel       ← resolve paths automaticamente por convenção
+- com.geckolib.model.DefaultedGeoModel            ← base de DefaultedBlockGeoModel
+- com.geckolib.renderer.GeoBlockRenderer          ← NÃO GeoBlockEntityRenderer (não existe em 5.x)
+- com.geckolib.util.GeckoLibUtil                  ← createInstanceCache(this)
+
+ANIMATIONCONTROLLER (GeckoLib 5.x — construtor mudou):
+- GeckoLib 4.x: new AnimationController<>(this, "nome", ticks, state -> {...})
+- GeckoLib 5.x: new AnimationController<MinhaClasse>("nome", ticks, animTest -> {...})
+  → NÃO recebe o animatable (this) como primeiro argumento
+  → Java não consegue inferir <> sozinho — sempre declarar o tipo: new AnimationController<MinhaBlockEntity>(...)
+- AnimationStateHandler é @FunctionalInterface aninhada: PlayState handle(AnimationTest<A> animatable)
+- AnimationTest.setAndContinue(RawAnimation) → define animação e retorna PlayState.CONTINUE automaticamente
+  → substitui o padrão antigo de state.setAnimation() + return PlayState.CONTINUE separados
+- Construtores disponíveis (sem this):
+  new AnimationController<T>(AnimationStateHandler<T> handler)
+  new AnimationController<T>(String name, AnimationStateHandler<T> handler)
+  new AnimationController<T>(String name, int transitionTicks, AnimationStateHandler<T> handler)
+
+GEOMODEL — SISTEMA DE PATHS (GeckoLib 5.x):
+- GeckoLib 5.x lê arquivos de:
+  - Modelos: assets/{namespace}/geckolib/models/{subtype}/{nome}.geo.json
+  - Animações: assets/{namespace}/geckolib/animations/{subtype}/{nome}.animation.json
+  - Texturas: assets/{namespace}/textures/{subtype}/{nome}.png  (caminho normal do MC)
+- NÃO usar geo/ nem animations/ da raiz — esses eram caminhos de GeckoLib 4.x e são silenciosamente ignorados
+- A chave do cache é o Identifier após stripPrefixAndSuffix():
+  arquivo geckolib/models/block/vampire_obelisk.geo.json → chave mysticrealm:block/vampire_obelisk
+- DefaultedBlockGeoModel(Identifier assetSubpath):
+  - subtype = "block"
+  - modelPath      = assetSubpath.withPrefix("block/")         → mysticrealm:block/vampire_obelisk
+  - texturePath    = "textures/block/" + path + ".png"         → mysticrealm:textures/block/vampire_obelisk.png
+  - animationsPath = assetSubpath.withPrefix("block/")         → mysticrealm:block/vampire_obelisk
+  ex: new DefaultedBlockGeoModel<>(Identifier.fromNamespaceAndPath(MODID, "vampire_obelisk"))
+    → modelo em geckolib/models/block/vampire_obelisk.geo.json
+    → animação em geckolib/animations/block/vampire_obelisk.animation.json
+    → textura em textures/block/vampire_obelisk.png
+- withAltModel(id) / withAltAnimations(id) / withAltTexture(id) — override de path individual
+
+GEORENDERER DE BLOCOS (GeckoLib 5.x):
+- GeoBlockEntityRenderer NÃO EXISTE — usar GeoBlockRenderer
+- GeoBlockRenderer<T extends BlockEntity & GeoAnimatable, R extends BlockEntityRenderState>
+  - implements GeoRenderer<T, Void, R> e BlockEntityRenderer<T, R>
+  - Construtor com GeoModel: GeoBlockRenderer(Context context, GeoModel<T> model)
+  - Construtor com BlockEntityType: GeoBlockRenderer(Context context, BlockEntityType<? extends T> type)
+    → usa DefaultedBlockGeoModel internamente com o ID registrado da BlockEntity
+- NÃO sobrescrever getModelResource(), getTextureResource(), getAnimationResource() (não existem como @Override)
+  → toda a configuração é passada via GeoModel no construtor
+- Registrar via EntityRenderersEvent.RegisterRenderers (MOD bus):
+  event.registerBlockEntityRenderer(MysticBlockEntities.VAMPIRE_OBELISK.get(), VampireObeliskRenderer::new)
+  → O tipo correto é BlockEntityRendererProvider<T, S> (functional interface)
+
+GEOBLOCKENITY — REGISTERCONTROLLERS (GeckoLib 5.x):
+- AnimatableManager.ControllerRegistrar.add(AnimationController<?>... controllers)
+- Exemplo completo de um bloco com idle:
+  ```java
+  @Override
+  public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+      controllers.add(new AnimationController<VampireObeliskBlockEntity>("idle_controller", 0,
+          animTest -> animTest.setAndContinue(IDLE)));
+  }
+  ```
+
+---
+
 PROBLEMAS CONHECIDOS DO IDE (VS CODE):
 - Erros "net.minecraft cannot be resolved" são de indexação — NÃO são erros reais
+- Erros de tipos GeckoLib (GeoBlockEntity, RawAnimation, etc.) também podem ser falsos positivos de indexação
 - Fix: rodar gradlew eclipse
 - Verificar erros reais SEMPRE com: .\gradlew.bat build
 
 ---
 
 PRÓXIMAS FASES PLANEJADAS:
-- Fase 4d: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
+- Fase 4e: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
 - Fase 5: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
   - Reutilizar IPendingTransformation para WerewolfCurseEffect (mesmo fluxo de morte/transformação)
   - Reutilizar ChannelAction para habilidades ativas do lobisomem

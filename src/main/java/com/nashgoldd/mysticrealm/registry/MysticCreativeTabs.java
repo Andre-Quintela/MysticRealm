@@ -19,6 +19,7 @@ public class MysticCreativeTabs {
                     .title(Component.translatable("itemGroup.mysticrealm.main"))
                     .icon(() -> new ItemStack(MysticItems.VAMPIRE_BLOOD_VIAL.get()))
                     .displayItems((params, output) -> {
+                        output.accept(MysticItems.VAMPIRE_OBELISK.get());
                         output.accept(MysticItems.BLOOD_VIAL.get());
                         output.accept(MysticItems.VAMPIRE_BLOOD_VIAL.get());
                         output.accept(MysticItems.WOODEN_STAKE.get());

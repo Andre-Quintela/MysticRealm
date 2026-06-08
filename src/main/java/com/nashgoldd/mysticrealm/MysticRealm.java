@@ -5,6 +5,8 @@ import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.event.handler.PlayerEventHandler;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.registry.MysticBlockEntities;
+import com.nashgoldd.mysticrealm.registry.MysticBlocks;
 import com.nashgoldd.mysticrealm.registry.MysticEffects;
 import com.nashgoldd.mysticrealm.registry.MysticEntityTypes;
 import com.nashgoldd.mysticrealm.registry.MysticCreativeTabs;
@@ -30,6 +32,8 @@ public class MysticRealm {
     public static final String MODID = "mysticrealm";
 
     public MysticRealm(IEventBus modEventBus, ModContainer modContainer) {
+        MysticBlocks.register(modEventBus);
+        MysticBlockEntities.register(modEventBus);
         MysticAttachments.register(modEventBus);
         MysticEffects.register(modEventBus);
         MysticItems.register(modEventBus);

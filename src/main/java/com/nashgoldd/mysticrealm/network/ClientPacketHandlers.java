@@ -4,6 +4,8 @@ import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.ClientDrainState;
+import com.nashgoldd.mysticrealm.supernatural.vampire.client.screen.VampireObeliskScreen;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.OpenObeliskScreenPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncDrainStatePacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireProgressionPacket;
@@ -61,6 +63,10 @@ public final class ClientPacketHandlers {
             MysticRealmLogger.debug("Progressão vampírica sincronizada: rank={}, essence={}, ageTicks={}, ascensions={}",
                 packet.rank(), packet.bloodEssence(), packet.vampireAgeTicks(), packet.ascensionCount());
         });
+    }
+
+    public static void handleOpenObeliskScreen(OpenObeliskScreenPacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> Minecraft.getInstance().setScreen(new VampireObeliskScreen()));
     }
 
     public static void handleSyncDrainState(SyncDrainStatePacket packet, IPayloadContext ctx) {

@@ -12,6 +12,7 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPa
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncDrainStatePacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPacket;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.OpenObeliskScreenPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireProgressionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -54,6 +55,11 @@ public final class MysticNetwork {
             SyncVampireProgressionPacket.TYPE,
             SyncVampireProgressionPacket.STREAM_CODEC,
             ClientPacketHandlers::handleSyncVampireProgression
+        );
+        registrar.playToClient(
+            OpenObeliskScreenPacket.TYPE,
+            OpenObeliskScreenPacket.STREAM_CODEC,
+            ClientPacketHandlers::handleOpenObeliskScreen
         );
 
         // Cliente → Servidor

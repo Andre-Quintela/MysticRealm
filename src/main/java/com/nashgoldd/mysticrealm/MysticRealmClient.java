@@ -1,7 +1,9 @@
 package com.nashgoldd.mysticrealm;
 
+import com.nashgoldd.mysticrealm.registry.MysticBlockEntities;
 import com.nashgoldd.mysticrealm.registry.MysticEntityTypes;
 import com.nashgoldd.mysticrealm.registry.MysticParticles;
+import com.nashgoldd.mysticrealm.supernatural.vampire.client.renderer.VampireObeliskRenderer;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.VampireKeyBindings;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.model.VampireEntityModel;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.particle.BloodDrainParticle;
@@ -35,6 +37,10 @@ public class MysticRealmClient {
         event.registerEntityRenderer(
             MysticEntityTypes.HOSTILE_VAMPIRE.get(),
             VampireEntityRenderer::new
+        );
+        event.registerBlockEntityRenderer(
+            MysticBlockEntities.VAMPIRE_OBELISK.get(),
+            VampireObeliskRenderer::new
         );
     }
 

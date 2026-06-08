@@ -1,4 +1,7 @@
 {
+  "block.mysticrealm.vampire_obelisk": "Vampire Obelisk",
+  "itemGroup.mysticrealm.main": "Mystic Realm",
+
   "mysticrealm.configuration.title": "MysticRealm Configuration",
   "mysticrealm.configuration.section.mysticrealm-common.toml": "MysticRealm",
   "mysticrealm.configuration.section.mysticrealm-common.toml.title": "MysticRealm",

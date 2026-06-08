@@ -4,6 +4,7 @@ import com.nashgoldd.mysticrealm.MysticRealm;
 import com.nashgoldd.mysticrealm.supernatural.vampire.item.BloodVialItem;
 import com.nashgoldd.mysticrealm.supernatural.vampire.item.VampireBloodVialItem;
 import com.nashgoldd.mysticrealm.supernatural.vampire.item.WoodenStakeItem;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.SpawnEggItem;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -22,6 +23,11 @@ public final class MysticItems {
 
     public static final DeferredItem<VampireBloodVialItem> VAMPIRE_BLOOD_VIAL =
         ITEMS.registerItem("vampire_blood_vial", VampireBloodVialItem::new, p -> p.stacksTo(16));
+
+    public static final DeferredItem<BlockItem> VAMPIRE_OBELISK =
+        ITEMS.registerItem("vampire_obelisk",
+            props -> new BlockItem(MysticBlocks.VAMPIRE_OBELISK.get(), props),
+            p -> p.stacksTo(1));
 
     public static final DeferredItem<SpawnEggItem> HOSTILE_VAMPIRE_SPAWN_EGG =
         ITEMS.registerItem("hostile_vampire_spawn_egg",
