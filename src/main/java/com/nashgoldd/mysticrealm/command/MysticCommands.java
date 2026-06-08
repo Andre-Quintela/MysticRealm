@@ -40,13 +40,13 @@ public final class MysticCommands {
                 .then(Commands.literal("info")
                     .executes(ctx -> cmdInfo(ctx.getSource())))
 
-                // ── Sangue (0-100, mapeado para foodLevel 0-20) ──────────────
+                // ── Sangue (0-20, escala nativa do FoodData) ─────────────────
                 .then(Commands.literal("blood")
                     .then(Commands.literal("set")
-                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
+                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 20))
                             .executes(ctx -> cmdBloodSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "value")))))
                     .then(Commands.literal("add")
-                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
+                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 20))
                             .executes(ctx -> cmdBloodAdd(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "value")))))
                     .then(Commands.literal("info")
                         .executes(ctx -> cmdBloodInfo(ctx.getSource()))))
@@ -89,7 +89,7 @@ public final class MysticCommands {
         return 1;
     }
 
-    // ── Handlers de sangue (0-100 → foodLevel 0-20) ───────────────────────────
+    // ── Handlers de sangue (0-20, escala nativa) ──────────────────────────────
 
     private static int cmdBloodSet(CommandSourceStack source, int value)
             throws CommandSyntaxException {
@@ -98,10 +98,9 @@ public final class MysticCommands {
             source.sendFailure(Component.literal("Apenas vampiros têm sangue."));
             return 0;
         }
-        player.getFoodData().setFoodLevel(value / 5);
+        player.getFoodData().setFoodLevel(value);
         MysticNetwork.syncVampireToClient(player);
-        int actual = player.getFoodData().getFoodLevel() * 5;
-        source.sendSuccess(() -> Component.literal("Blood set to " + actual + "/100"), false);
+        source.sendSuccess(() -> Component.literal("Blood set to " + value + "/20"), false);
         return 1;
     }
 
@@ -113,10 +112,10 @@ public final class MysticCommands {
             return 0;
         }
         int current = player.getFoodData().getFoodLevel();
-        player.getFoodData().setFoodLevel(Math.min(20, current + amount / 5));
+        int newLevel = Math.min(20, current + amount);
+        player.getFoodData().setFoodLevel(newLevel);
         MysticNetwork.syncVampireToClient(player);
-        int actual = player.getFoodData().getFoodLevel() * 5;
-        source.sendSuccess(() -> Component.literal("Blood +" + amount + " → " + actual + "/100"), false);
+        source.sendSuccess(() -> Component.literal("Blood +" + amount + " → " + newLevel + "/20"), false);
         return 1;
     }
 
@@ -127,9 +126,9 @@ public final class MysticCommands {
             return 0;
         }
         VampireData data = VampireService.getData(player);
-        int blood = player.getFoodData().getFoodLevel() * 5;
+        int blood = player.getFoodData().getFoodLevel();
         source.sendSuccess(() -> Component.literal(
-            "§6[Vampiro]§r Blood: §4" + blood + "§r/100" +
+            "§6[Vampiro]§r Blood: §4" + blood + "§r/20" +
             " | Rank: §5" + data.getRank().displayName() +
             " | Essence: §e" + data.getBloodEssence() +
             " | Transformed: " + data.isTransformed() +
@@ -144,8 +143,8 @@ public final class MysticCommands {
     private static int cmdVampireTransform(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         VampireService.transform(player);
-        int blood = player.getFoodData().getFoodLevel() * 5;
-        source.sendSuccess(() -> Component.literal("§4Transformado em Vampiro.§r Blood: " + blood + "/100"), false);
+        int blood = player.getFoodData().getFoodLevel();
+        source.sendSuccess(() -> Component.literal("§4Transformado em Vampiro.§r Blood: " + blood + "/20"), false);
         return 1;
     }
 

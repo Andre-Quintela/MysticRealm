@@ -93,11 +93,11 @@ public final class MysticConfig {
 
         VAMPIRE_REGENERATION_THRESHOLD = BUILDER
             .translation("mysticrealm.configuration.vampire.regenerationThreshold")
-            .defineInRange("regenerationThreshold", 75, 0, 100);
+            .defineInRange("regenerationThreshold", 15, 0, 20);
 
         VAMPIRE_SPEED_THRESHOLD = BUILDER
             .translation("mysticrealm.configuration.vampire.speedThreshold")
-            .defineInRange("speedThreshold", 50, 0, 100);
+            .defineInRange("speedThreshold", 10, 0, 20);
 
         VAMPIRE_IMMORTALITY_ENABLED = BUILDER
             .translation("mysticrealm.configuration.vampire.immortalityEnabled")

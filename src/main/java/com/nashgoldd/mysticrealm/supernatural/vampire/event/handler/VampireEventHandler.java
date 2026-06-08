@@ -104,7 +104,7 @@ public class VampireEventHandler {
 
         if (player.tickCount % intervalTicks == 0) {
             FoodData food = player.getFoodData();
-            int drainUnits = Math.max(1, MysticConfig.VAMPIRE_BLOOD_DRAIN_AMOUNT.get() / 5);
+            int drainUnits = Math.max(1, MysticConfig.VAMPIRE_BLOOD_DRAIN_AMOUNT.get());
             food.setFoodLevel(Math.max(0, food.getFoodLevel() - drainUnits));
             MysticNetwork.syncVampireToClient(player);
             MysticRealmLogger.debug("Drenagem de sangue: -{} food unit(s) → {}/20", drainUnits, food.getFoodLevel());
@@ -143,8 +143,7 @@ public class VampireEventHandler {
     }
 
     private void tickPassiveEffects(ServerPlayer player) {
-        // blood como percentual 0-100 derivado de FoodData (0-20 → 0-100)
-        int blood = player.getFoodData().getFoodLevel() * 5;
+        int blood = player.getFoodData().getFoodLevel();
         int regenThreshold = MysticConfig.VAMPIRE_REGENERATION_THRESHOLD.get();
         int speedThreshold = MysticConfig.VAMPIRE_SPEED_THRESHOLD.get();
 

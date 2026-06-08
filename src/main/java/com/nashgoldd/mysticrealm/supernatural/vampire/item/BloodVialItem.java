@@ -20,8 +20,7 @@ import net.minecraft.world.level.Level;
  */
 public class BloodVialItem extends Item {
 
-    private static final int BLOOD_RESTORE_PERCENT = 25; // percentual exibido ao jogador
-    private static final int FOOD_RESTORE = BLOOD_RESTORE_PERCENT / 5; // = 5 food units
+    private static final int FOOD_RESTORE = 5; // 5/20 = 25% de sangue
     private static final int USE_DURATION = 32;
 
     public BloodVialItem(Properties properties) {
@@ -43,9 +42,8 @@ public class BloodVialItem extends Item {
             FoodData food = player.getFoodData();
             food.setFoodLevel(Math.min(20, food.getFoodLevel() + FOOD_RESTORE));
             MysticNetwork.syncVampireToClient(player);
-            int bloodPercent = food.getFoodLevel() * 5;
             player.sendSystemMessage(Component.literal(
-                "§4[Blood]§r +" + BLOOD_RESTORE_PERCENT + "% → " + bloodPercent + "/100"
+                "§4[Blood]§r +" + FOOD_RESTORE + " → " + food.getFoodLevel() + "/20"
             ));
             stack.shrink(1);
         }
