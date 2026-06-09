@@ -22,10 +22,20 @@ public final class VampireKeyBindings {
         CATEGORY
     );
 
+    // Padrão: Z — remapeável em Settings → Controls → Mystic Realm
+    public static final KeyMapping KEY_ABILITY_WHEEL = new KeyMapping(
+        "key.mysticrealm.ability_wheel",
+        KeyConflictContext.IN_GAME,
+        InputConstants.Type.KEYSYM,
+        GLFW.GLFW_KEY_Z,
+        CATEGORY
+    );
+
     private VampireKeyBindings() {}
 
     public static void register(RegisterKeyMappingsEvent event) {
         event.registerCategory(CATEGORY);
         event.register(KEY_DRAIN_BLOOD);
+        event.register(KEY_ABILITY_WHEEL);
     }
 }

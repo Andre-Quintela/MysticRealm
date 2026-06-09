@@ -7,6 +7,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityRegistry;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
 import com.nashgoldd.mysticrealm.supernatural.race.RaceType;
 import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
@@ -59,6 +61,27 @@ public final class MysticCommands {
                         .executes(ctx -> cmdVampireCure(ctx.getSource())))
                     .then(Commands.literal("ascend")
                         .executes(ctx -> cmdVampireAscend(ctx.getSource()))))
+
+                // ── Ability Wheel ─────────────────────────────────────────────
+                .then(Commands.literal("abilities")
+                    .then(Commands.literal("setslot")
+                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 8))
+                            .then(Commands.argument("ability_id", StringArgumentType.word())
+                                .suggests((ctx, builder) -> {
+                                    AbilityRegistry.getIds().forEach(builder::suggest);
+                                    return builder.buildFuture();
+                                })
+                                .executes(ctx -> cmdAbilitiesSetSlot(
+                                    ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "slot"),
+                                    StringArgumentType.getString(ctx, "ability_id"))))))
+                    .then(Commands.literal("clearslot")
+                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 8))
+                            .executes(ctx -> cmdAbilitiesClearSlot(
+                                ctx.getSource(),
+                                IntegerArgumentType.getInteger(ctx, "slot")))))
+                    .then(Commands.literal("listslots")
+                        .executes(ctx -> cmdAbilitiesListSlots(ctx.getSource()))))
         );
     }
 
@@ -197,6 +220,50 @@ public final class MysticCommands {
         ServerPlayer player = source.getPlayerOrException();
         VampireService.cure(player);
         source.sendSuccess(() -> Component.literal("Curado. Race: HUMAN"), false);
+        return 1;
+    }
+
+    // ── Handlers de ability wheel ─────────────────────────────────────────────
+
+    private static int cmdAbilitiesSetSlot(CommandSourceStack source, int slot, String abilityId)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        if (!VampireService.isVampire(player)) {
+            source.sendFailure(Component.literal("§4Apenas vampiros têm ability wheel."));
+            return 0;
+        }
+        if (AbilityRegistry.get(abilityId).isEmpty()) {
+            source.sendFailure(Component.literal("§4Ability desconhecida: '" + abilityId + "'. Use Tab para ver as opções."));
+            return 0;
+        }
+        player.getData(MysticAttachments.ABILITY_WHEEL).setSlot(slot, abilityId);
+        MysticNetwork.syncAbilityDataToClient(player);
+        source.sendSuccess(() -> Component.literal("Slot §e" + slot + "§r → §b" + abilityId), false);
+        return 1;
+    }
+
+    private static int cmdAbilitiesClearSlot(CommandSourceStack source, int slot)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        player.getData(MysticAttachments.ABILITY_WHEEL).clearSlot(slot);
+        MysticNetwork.syncAbilityDataToClient(player);
+        source.sendSuccess(() -> Component.literal("Slot §e" + slot + "§r limpo."), false);
+        return 1;
+    }
+
+    private static int cmdAbilitiesListSlots(CommandSourceStack source)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        AbilityWheelData data = player.getData(MysticAttachments.ABILITY_WHEEL);
+        StringBuilder sb = new StringBuilder("§6[Ability Wheel]");
+        for (int i = 1; i <= AbilityWheelData.SLOTS; i++) {
+            String id = data.getSlot(i).orElse("(empty)");
+            boolean active = data.isActive(id);
+            String status = active ? " §a[ON]§r" : "";
+            sb.append("\n  §eSlot ").append(i).append("§r: §b").append(id).append(status);
+        }
+        String msg = sb.toString();
+        source.sendSuccess(() -> Component.literal(msg), false);
         return 1;
     }
 }

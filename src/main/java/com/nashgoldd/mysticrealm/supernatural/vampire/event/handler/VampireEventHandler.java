@@ -4,6 +4,10 @@ import com.nashgoldd.mysticrealm.config.MysticConfig;
 import com.nashgoldd.mysticrealm.network.MysticDamageTypes;
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityRegistry;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.ability.NightVisionAbility;
+import com.nashgoldd.mysticrealm.supernatural.vampire.ability.SpeedAbility;
 import com.nashgoldd.mysticrealm.registry.MysticEffects;
 import com.nashgoldd.mysticrealm.supernatural.transformation.IPendingTransformation;
 import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireRank;
@@ -147,24 +151,33 @@ public class VampireEventHandler {
         int regenThreshold = MysticConfig.VAMPIRE_REGENERATION_THRESHOLD.get();
         int speedThreshold = MysticConfig.VAMPIRE_SPEED_THRESHOLD.get();
 
-        // Visão noturna — threshold 220 evita o piscar dos últimos 200 ticks
-        ensureEffect(player, MobEffects.NIGHT_VISION, 3600, 0, 220);
+        // Visão noturna — gerenciada passivamente a menos que esteja num slot da roda
+        if (!isManagedByWheel(player, NightVisionAbility.ID)) {
+            ensureEffect(player, MobEffects.NIGHT_VISION, 3600, 0, 220);
+        }
 
-        // Regeneração quando sangue alto
+        // Regeneração quando sangue alto (nunca na roda, sempre passivo)
         if (blood >= regenThreshold) {
             ensureEffect(player, MobEffects.REGENERATION, 200, 0);
         } else {
             player.removeEffect(MobEffects.REGENERATION);
         }
 
-        // Velocidade quando sangue moderado
-        if (blood >= speedThreshold) {
-            ensureEffect(player, MobEffects.SPEED, 200, 0);
-        } else {
-            player.removeEffect(MobEffects.SPEED);
+        // Velocidade quando sangue moderado — gerenciada passivamente a menos que esteja na roda
+        if (!isManagedByWheel(player, SpeedAbility.ID)) {
+            if (blood >= speedThreshold) {
+                ensureEffect(player, MobEffects.SPEED, 200, 0);
+            } else {
+                player.removeEffect(MobEffects.SPEED);
+            }
         }
 
         applyBloodPenalties(player, blood, regenThreshold, speedThreshold);
+    }
+
+    private boolean isManagedByWheel(ServerPlayer player, String abilityId) {
+        AbilityWheelData wheelData = player.getData(MysticAttachments.ABILITY_WHEEL);
+        return wheelData.getSlots().containsValue(abilityId);
     }
 
     private void applyBloodPenalties(ServerPlayer player, int blood, int regenThreshold, int speedThreshold) {
@@ -325,6 +338,14 @@ public class VampireEventHandler {
         MysticNetwork.syncToClient(player);
         MysticNetwork.syncVampireToClient(player);
         MysticNetwork.syncVampireProgressionToClient(player);
+
+        // Desativar abilities ativas e limpar o estado ao morrer
+        AbilityWheelData wheelData = player.getData(MysticAttachments.ABILITY_WHEEL);
+        for (String id : new java.util.HashSet<>(wheelData.getActiveAbilities())) {
+            AbilityRegistry.get(id).ifPresent(a -> a.deactivate(player));
+        }
+        wheelData.clearAllActive();
+        MysticNetwork.syncAbilityDataToClient(player);
     }
 
     @SubscribeEvent
@@ -332,6 +353,7 @@ public class VampireEventHandler {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         MysticNetwork.syncVampireToClient(player);
         MysticNetwork.syncVampireProgressionToClient(player);
+        MysticNetwork.syncAbilityDataToClient(player);
     }
 
     @SubscribeEvent

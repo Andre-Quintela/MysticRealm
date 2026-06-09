@@ -2,6 +2,7 @@ package com.nashgoldd.mysticrealm.registry;
 
 import com.nashgoldd.mysticrealm.MysticRealm;
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import net.neoforged.bus.api.IEventBus;
@@ -36,6 +37,14 @@ public final class MysticAttachments {
         ATTACHMENT_TYPES.register("entity_blood", () ->
             AttachmentType.builder(EntityBloodData::new)
                 .serialize(EntityBloodData.CODEC)
+                .build()
+        );
+
+    public static final Supplier<AttachmentType<AbilityWheelData>> ABILITY_WHEEL =
+        ATTACHMENT_TYPES.register("ability_wheel", () ->
+            AttachmentType.builder(AbilityWheelData::new)
+                .serialize(AbilityWheelData.CODEC)
+                .copyOnDeath()
                 .build()
         );
 

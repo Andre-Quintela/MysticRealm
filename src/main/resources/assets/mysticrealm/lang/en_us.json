@@ -5,6 +5,12 @@
   "mysticrealm.configuration.title": "MysticRealm Configuration",
   "mysticrealm.configuration.section.mysticrealm-common.toml": "MysticRealm",
   "mysticrealm.configuration.section.mysticrealm-common.toml.title": "MysticRealm",
+  "mysticrealm.configuration.section.mysticrealm-client.toml": "MysticRealm Client",
+  "mysticrealm.configuration.section.mysticrealm-client.toml.title": "MysticRealm Client",
+
+  "mysticrealm.configuration.hud": "HUD",
+  "mysticrealm.configuration.hud.abilityWheelScale": "Ability Wheel Scale",
+  "mysticrealm.configuration.hud.abilityWheelScale.tooltip": "Scale of the vampire ability wheel (0.5 - 3.0). 2.0 = default size.",
 
   "mysticrealm.configuration.general": "General",
   "mysticrealm.configuration.general.debugLogging": "Debug Logging",
@@ -102,5 +108,6 @@
   "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight",
   "itemGroup.mysticrealm.main": "Mystic Realm",
   "key.category.mysticrealm.mysticrealm": "Mystic Realm",
-  "key.mysticrealm.drain_blood": "Drain Blood"
+  "key.mysticrealm.drain_blood": "Drain Blood",
+  "key.mysticrealm.ability_wheel": "Ability Wheel"
 }

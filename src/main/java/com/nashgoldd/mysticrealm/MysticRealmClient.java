@@ -1,5 +1,6 @@
 package com.nashgoldd.mysticrealm;
 
+import com.nashgoldd.mysticrealm.config.MysticClientConfig;
 import com.nashgoldd.mysticrealm.registry.MysticBlockEntities;
 import com.nashgoldd.mysticrealm.registry.MysticEntityTypes;
 import com.nashgoldd.mysticrealm.registry.MysticParticles;
@@ -16,6 +17,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
@@ -27,6 +29,7 @@ public class MysticRealmClient {
 
     public MysticRealmClient(IEventBus modEventBus, ModContainer container) {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+        container.registerConfig(ModConfig.Type.CLIENT, MysticClientConfig.SPEC, "mysticrealm-client.toml");
         modEventBus.addListener(VampireKeyBindings::register);
         modEventBus.addListener(MysticRealmClient::onRegisterRenderers);
         modEventBus.addListener(MysticRealmClient::onRegisterLayerDefinitions);

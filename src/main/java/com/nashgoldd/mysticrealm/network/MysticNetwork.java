@@ -8,12 +8,15 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainPacket;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncAbilityDataPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncDrainStatePacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireDataPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.OpenObeliskScreenPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.SyncVampireProgressionPacket;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.ToggleAbilityPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -61,6 +64,11 @@ public final class MysticNetwork {
             OpenObeliskScreenPacket.STREAM_CODEC,
             ClientPacketHandlers::handleOpenObeliskScreen
         );
+        registrar.playToClient(
+            SyncAbilityDataPacket.TYPE,
+            SyncAbilityDataPacket.STREAM_CODEC,
+            ClientPacketHandlers::handleSyncAbilityData
+        );
 
         // Cliente → Servidor
         registrar.playToServer(
@@ -72,6 +80,11 @@ public final class MysticNetwork {
             CancelBloodDrainPacket.TYPE,
             CancelBloodDrainPacket.STREAM_CODEC,
             ServerPacketHandlers::handleCancelDrain
+        );
+        registrar.playToServer(
+            ToggleAbilityPacket.TYPE,
+            ToggleAbilityPacket.STREAM_CODEC,
+            ServerPacketHandlers::handleToggleAbility
         );
     }
 
@@ -149,6 +162,14 @@ public final class MysticNetwork {
         }
 
         PacketDistributor.sendToPlayer(player, packet);
+    }
+
+    public static void syncAbilityDataToClient(ServerPlayer player) {
+        AbilityWheelData data = player.getData(MysticAttachments.ABILITY_WHEEL);
+        PacketDistributor.sendToPlayer(player, new SyncAbilityDataPacket(
+            data.getSlots(),
+            data.getActiveAbilities()
+        ));
     }
 
     private static LivingEntity findHoveredLivingEntity(ServerPlayer player, double range) {

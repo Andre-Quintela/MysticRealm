@@ -26,8 +26,27 @@ public final class VampireClientInputHandler {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.screen != null) return;
+        if (mc.player == null) return;
         if (!VampireService.isVampire(mc.player)) return;
+
+        // ── Roda de Habilidades ───────────────────────────────────────────────
+        boolean wheelDown = VampireKeyBindings.KEY_ABILITY_WHEEL.isDown();
+        boolean wheelOpen = VampireAbilityWheelHud.isOpen();
+
+        if (wheelDown && !wheelOpen) {
+            VampireAbilityWheelHud.openWheel();
+        } else if (!wheelDown && wheelOpen) {
+            VampireAbilityWheelHud.closeWheel();
+        }
+
+        if (VampireAbilityWheelHud.isOpen()) {
+            VampireAbilityWheelHud.trackMouse();
+            return;
+        }
+
+        // ── Drenagem de Sangue ────────────────────────────────────────────────
+        // Guard: não processar drenagem enquanto qualquer tela estiver aberta
+        if (mc.screen != null) return;
 
         // Contagem regressiva local do cooldown (atualizada pelo servidor via SyncDrainStatePacket)
         if (ClientDrainState.cooldownTicks > 0) {

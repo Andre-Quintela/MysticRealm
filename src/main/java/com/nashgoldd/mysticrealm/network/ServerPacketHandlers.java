@@ -1,10 +1,14 @@
 package com.nashgoldd.mysticrealm.network;
 
+import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityRegistry;
+import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.DrainableEntityRegistry;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainPacket;
+import com.nashgoldd.mysticrealm.supernatural.vampire.network.ToggleAbilityPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -43,6 +47,24 @@ public final class ServerPacketHandlers {
         ctx.enqueueWork(() -> {
             if (!(ctx.player() instanceof ServerPlayer player)) return;
             ChannelService.cancel(player);
+        });
+    }
+
+    public static void handleToggleAbility(ToggleAbilityPacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) return;
+            if (!VampireService.isVampire(player)) return;
+
+            AbilityWheelData data = player.getData(MysticAttachments.ABILITY_WHEEL);
+            data.getSlot(packet.slot()).ifPresent(id ->
+                AbilityRegistry.get(id).ifPresent(ability -> {
+                    boolean nowActive = !data.isActive(id);
+                    data.setActive(id, nowActive);
+                    if (nowActive) ability.activate(player);
+                    else           ability.deactivate(player);
+                    MysticNetwork.syncAbilityDataToClient(player);
+                })
+            );
         });
     }
 }
