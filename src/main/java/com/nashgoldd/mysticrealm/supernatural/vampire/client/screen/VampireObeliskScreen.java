@@ -1,31 +1,47 @@
 package com.nashgoldd.mysticrealm.supernatural.vampire.client.screen;
 
+import com.nashgoldd.mysticrealm.MysticRealm;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
-import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireProgressionService;
 import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireRank;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 
-import java.util.Optional;
+import java.util.List;
 
 public class VampireObeliskScreen extends Screen {
 
-    private static final int BG_COLOR     = 0xDD0A0A0F;
-    private static final int BORDER_COLOR = 0xFF6B0000;
-    private static final int TITLE_COLOR  = 0xFFCC2222;
-    private static final int LABEL_COLOR  = 0xFFAA6666;
-    private static final int VALUE_COLOR  = 0xFFFFDDDD;
-    private static final int LORE_COLOR   = 0xFFAA9999;
-    private static final int MAXED_COLOR  = 0xFFFFD700;
+    private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(MysticRealm.MODID, "textures/gui/vampire_obelisk_background.png");
 
-    private static final int W = 300;
-    private static final int H = 180;
+    private static final int TITLE_COLOR = 0xFFCC2222;
+    private static final int VALUE_COLOR = 0xFFFFDDDD;
+    private static final int LORE_COLOR  = 0xFFAA9999;
+
+    private static final int W = 600;
+    private static final int H = 442;
+
+    // Painel de progressão (apenas para vampiros)
+    private static final int LEVEL_X = 95,   LEVEL_Y = 297;
+    private static final int ESSENCE_X = 95, ESSENCE_Y = 335;
+    private static final int AGE_X = 95,     AGE_Y = 373;
+
+    // Painel de lore — preparado para paginação futura (botões anterior/próximo)
+    private static final int LORE_X = 368, LORE_Y = 80;
+    private static final int LORE_W = 160, LORE_H = 145;
+    private static final int LORE_LINE_HEIGHT = 10;
+
+    private static final List<String> LORE_PAGES = List.of(
+        "In ages past, the ancient ones raised these pillars to guide the newly risen through the darkness..."
+    );
+
+    private int lorePage = 0;
 
     public VampireObeliskScreen() {
         super(Component.translatable("screen.mysticrealm.obelisk.title"));
@@ -41,78 +57,56 @@ public class VampireObeliskScreen extends Screen {
         int y = (height - H) / 2;
         Font font = Minecraft.getInstance().font;
 
-        // Fundo e bordas
-        g.fill(x, y, x + W, y + H, BG_COLOR);
-        g.fill(x,         y,         x + W,     y + 1,     BORDER_COLOR);
-        g.fill(x,         y + H - 1, x + W,     y + H,     BORDER_COLOR);
-        g.fill(x,         y,         x + 1,     y + H,     BORDER_COLOR);
-        g.fill(x + W - 1, y,         x + W,     y + H,     BORDER_COLOR);
-        // Divisor central
-        g.fill(x + W / 2, y + 16, x + W / 2 + 1, y + H - 8, BORDER_COLOR);
+        // Fundo da GUI
+        g.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, x, y, 0, 0, W, H, W, H);
 
-        // Título
+        // Título (renderizado em escala 2x)
         String titleStr = title.getString();
-        int titleX = x + W / 2 - font.width(titleStr) / 2;
-        g.text(font, titleStr, titleX, y + 6, TITLE_COLOR, true);
+        float titleScale = 1.5f;
+        int titleX = x + W / 2 - (int) (font.width(titleStr) * titleScale) / 2;
+        g.pose().pushMatrix();
+        g.pose().scale(titleScale, titleScale);
+        g.text(font, titleStr, (int) (titleX / titleScale), (int) ((y + 35) / titleScale), TITLE_COLOR, true);
+        g.pose().popMatrix();
 
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
 
-        boolean isVampire = VampireService.isVampire(player);
-
-        // --- Painel Esquerdo: Progressão (vampiros) ou dica (humanos) ---
-        int lx = x + 8;
-        int ly = y + 20;
-
-        if (isVampire) {
+        if (VampireService.isVampire(player)) {
             VampireData data = player.getData(MysticAttachments.VAMPIRE_DATA);
             VampireRank rank = data.getRank();
             long essence = data.getBloodEssence();
             long ageTicks = data.getVampireAgeTicks();
 
-            g.text(font, "Rank: " + rank.displayName(), lx, ly, LABEL_COLOR, false);
-            ly += 12;
-
-            g.text(font, "Blood Essence: " + formatLong(essence), lx, ly, VALUE_COLOR, false);
-            ly += 12;
-
-            g.text(font, "Vampire Age: " + formatAge(ageTicks), lx, ly, VALUE_COLOR, false);
-            ly += 16;
-
-            Optional<VampireRank> next = rank.next();
-            if (next.isPresent()) {
-                VampireRank nextRank = next.get();
-                g.text(font, "Next Rank: " + nextRank.displayName(), lx, ly, LABEL_COLOR, false);
-                ly += 10;
-
-                long needed = VampireProgressionService.getRequiredEssence(rank);
-                long missing = Math.max(0, needed - essence);
-                g.text(font, "Required: " + formatLong(needed) + "  (Missing: " + formatLong(missing) + ")", lx, ly, VALUE_COLOR, false);
-                ly += 10;
-
-                long neededHours = VampireProgressionService.getRequiredAgeHours(rank);
-                g.text(font, "Required age: " + neededHours + "h", lx, ly, VALUE_COLOR, false);
-            } else {
-                g.text(font, "You have reached the pinnacle of vampiric power.", lx, ly, MAXED_COLOR, false);
-            }
-        } else {
-            g.text(font, "Drink the Vampire Blood Vial", lx, ly, LORE_COLOR, false);
-            ly += 10;
-            g.text(font, "to begin your descent into darkness.", lx, ly, LORE_COLOR, false);
+            g.text(font, "Vampire Level: " + rank.displayName(), x + LEVEL_X, y + LEVEL_Y, VALUE_COLOR, false);
+            g.text(font, "Blood Essence: " + formatLong(essence), x + ESSENCE_X, y + ESSENCE_Y, VALUE_COLOR, false);
+            g.text(font, "Age: " + formatAge(ageTicks), x + AGE_X, y + AGE_Y, VALUE_COLOR, false);
         }
 
-        // --- Painel Direito: Lore ---
-        int rx = x + W / 2 + 8;
-        int ry = y + 20;
-        int lineWidth = W / 2 - 16;
-        String[] loreLines = wrapText(font,
-            "In ages past, the ancient ones raised these pillars to guide the newly risen through the darkness...",
-            lineWidth);
-        for (String line : loreLines) {
-            g.text(font, line, rx, ry, LORE_COLOR, false);
-            ry += 10;
-        }
+        // Painel de Lore
+        renderLore(g, font, x, y);
+    }
 
+    private void renderLore(GuiGraphicsExtractor g, Font font, int x, int y) {
+        String[] lines = wrapText(font, LORE_PAGES.get(lorePage), LORE_W);
+        int maxLines = LORE_H / LORE_LINE_HEIGHT;
+        int lineCount = Math.min(lines.length, maxLines);
+
+        int ly = y + LORE_Y;
+        for (int i = 0; i < lineCount; i++) {
+            g.text(font, lines[i], x + LORE_X, ly, LORE_COLOR, false);
+            ly += LORE_LINE_HEIGHT;
+        }
+    }
+
+    /** Avança para a próxima página de lore (com wrap-around). Pronto para uso por um botão futuro. */
+    public void nextLorePage() {
+        lorePage = (lorePage + 1) % LORE_PAGES.size();
+    }
+
+    /** Volta para a página de lore anterior (com wrap-around). Pronto para uso por um botão futuro. */
+    public void previousLorePage() {
+        lorePage = (lorePage - 1 + LORE_PAGES.size()) % LORE_PAGES.size();
     }
 
     @Override
