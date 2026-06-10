@@ -441,6 +441,24 @@ SCREENS (MC 26.x — método renomeado):
   e dividir as coordenadas x/y pela escala (o matrix stack escala o espaço de desenho inteiro)
 - Fundo de imagem cheia (fora do atlas de sprites, ex. telas grandes): g.blit(RenderPipelines.GUI_TEXTURED, Identifier, x, y, u, v, width, height, textureWidth, textureHeight)
   com Identifier apontando para o caminho completo da textura (ex. "textures/gui/nome.png")
+- GUI responsiva (telas grandes com tamanho fixo, ex. 600x442): em vez de centralizar com x=(width-W)/2 (estoura
+  quando width/height < W/H), envolver TODO o desenho em um único bloco escalado:
+  ```java
+  float scale = Math.min(1.0f, Math.min((width - MARGIN) / (float) W, (height - MARGIN) / (float) H));
+  float offsetX = (width - W * scale) / 2f;
+  float offsetY = (height - H * scale) / 2f;
+  g.pose().pushMatrix();
+  g.pose().translate(offsetX, offsetY);
+  g.pose().scale(scale, scale);
+  // desenhar tudo em coordenadas locais 0..W / 0..H (sem somar offsetX/offsetY)
+  g.pose().popMatrix();
+  ```
+  pose() é Matrix3x2fStack — translate() é aplicado antes do scale() na composição (screenPos = offset + local*scale),
+  então as constantes de layout originais continuam válidas sem alteração. scale nunca passa de 1.0 (não amplia em
+  telas grandes). Para escalas aninhadas (ex. título maior), empilhar outro pushMatrix/scale dentro do bloco.
+  Limitação: sem transformar mouseX/mouseY, hit-testing de botões dentro da área escalada não funciona — se a tela
+  ganhar elementos clicáveis, converter com (mouseX - offsetX) / scale antes de testar.
+  Exemplo: VampireObeliskScreen.java
 
 RENDERIZAÇÃO DE ENTIDADES (MC 26.x — sistema completamente novo):
 - EntityModel<T extends EntityRenderState> — model parametrizado por RenderState, NÃO pela entidade

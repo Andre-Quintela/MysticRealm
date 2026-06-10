@@ -50,51 +50,60 @@ public class VampireObeliskScreen extends Screen {
     @Override
     protected void init() {}
 
+    private static final int MARGIN = 20;
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(g, mouseX, mouseY, partialTick);
-        int x = (width - W) / 2;
-        int y = (height - H) / 2;
         Font font = Minecraft.getInstance().font;
 
-        // Fundo da GUI
-        g.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, x, y, 0, 0, W, H, W, H);
+        // Escala a GUI para baixo quando a tela for menor que 600x442 (nunca amplia além de 1.0)
+        float scale = Math.min(1.0f, Math.min((width - MARGIN) / (float) W, (height - MARGIN) / (float) H));
+        float offsetX = (width - W * scale) / 2f;
+        float offsetY = (height - H * scale) / 2f;
 
-        // Título (renderizado em escala 2x)
+        g.pose().pushMatrix();
+        g.pose().translate(offsetX, offsetY);
+        g.pose().scale(scale, scale);
+
+        // Fundo da GUI
+        g.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, 0, 0, 0, 0, W, H, W, H);
+
+        // Título (renderizado em escala 1.5x adicional)
         String titleStr = title.getString();
         float titleScale = 1.5f;
-        int titleX = x + W / 2 - (int) (font.width(titleStr) * titleScale) / 2;
+        int titleX = W / 2 - (int) (font.width(titleStr) * titleScale) / 2;
         g.pose().pushMatrix();
         g.pose().scale(titleScale, titleScale);
-        g.text(font, titleStr, (int) (titleX / titleScale), (int) ((y + 35) / titleScale), TITLE_COLOR, true);
+        g.text(font, titleStr, (int) (titleX / titleScale), (int) (35 / titleScale), TITLE_COLOR, true);
         g.pose().popMatrix();
 
         Player player = Minecraft.getInstance().player;
-        if (player == null) return;
-
-        if (VampireService.isVampire(player)) {
+        if (player != null && VampireService.isVampire(player)) {
             VampireData data = player.getData(MysticAttachments.VAMPIRE_DATA);
             VampireRank rank = data.getRank();
             long essence = data.getBloodEssence();
             long ageTicks = data.getVampireAgeTicks();
 
-            g.text(font, "Vampire Level: " + rank.displayName(), x + LEVEL_X, y + LEVEL_Y, VALUE_COLOR, false);
-            g.text(font, "Blood Essence: " + formatLong(essence), x + ESSENCE_X, y + ESSENCE_Y, VALUE_COLOR, false);
-            g.text(font, "Age: " + formatAge(ageTicks), x + AGE_X, y + AGE_Y, VALUE_COLOR, false);
+            g.text(font, "Vampire Level: " + rank.displayName(), LEVEL_X, LEVEL_Y, VALUE_COLOR, false);
+            g.text(font, "Blood Essence: " + formatLong(essence), ESSENCE_X, ESSENCE_Y, VALUE_COLOR, false);
+            g.text(font, "Age: " + formatAge(ageTicks), AGE_X, AGE_Y, VALUE_COLOR, false);
         }
 
         // Painel de Lore
-        renderLore(g, font, x, y);
+        renderLore(g, font);
+
+        g.pose().popMatrix();
     }
 
-    private void renderLore(GuiGraphicsExtractor g, Font font, int x, int y) {
+    private void renderLore(GuiGraphicsExtractor g, Font font) {
         String[] lines = wrapText(font, LORE_PAGES.get(lorePage), LORE_W);
         int maxLines = LORE_H / LORE_LINE_HEIGHT;
         int lineCount = Math.min(lines.length, maxLines);
 
-        int ly = y + LORE_Y;
+        int ly = LORE_Y;
         for (int i = 0; i < lineCount; i++) {
-            g.text(font, lines[i], x + LORE_X, ly, LORE_COLOR, false);
+            g.text(font, lines[i], LORE_X, ly, LORE_COLOR, false);
             ly += LORE_LINE_HEIGHT;
         }
     }
