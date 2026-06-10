@@ -33,7 +33,11 @@ public final class VampireClientInputHandler {
         boolean wheelDown = VampireKeyBindings.KEY_ABILITY_WHEEL.isDown();
         boolean wheelOpen = VampireAbilityWheelHud.isOpen();
 
-        if (wheelDown && !wheelOpen) {
+        if (!wheelDown) {
+            VampireAbilityWheelHud.clearSuppress();
+        }
+
+        if (wheelDown && !wheelOpen && !VampireAbilityWheelHud.isSuppressed()) {
             VampireAbilityWheelHud.openWheel();
         } else if (!wheelDown && wheelOpen) {
             VampireAbilityWheelHud.closeWheel();

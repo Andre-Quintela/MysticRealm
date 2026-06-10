@@ -9,11 +9,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.entity.player.Input;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.CalculatePlayerTurnEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
@@ -46,6 +48,9 @@ public final class VampireAbilityWheelHud {
 
     private static boolean open;
     private static int     selectedSlot = -1;
+
+    // Impede que a roda reabra no mesmo "segurar Z" após confirmar via clique do mouse.
+    private static boolean suppressUntilRelease;
 
     // Direção acumulada desde a abertura da roda (em "pixels" de mouse delta).
     private static double virtualX;
@@ -88,10 +93,29 @@ public final class VampireAbilityWheelHud {
 
     public static void closeWheel() {
         open = false;
+        confirmSelection();
+    }
+
+    /** Fecha a roda confirmando a seleção via clique do mouse, suprimindo reabertura enquanto a tecla seguir pressionada. */
+    public static void closeWheelViaClick() {
+        open = false;
+        confirmSelection();
+        suppressUntilRelease = true;
+    }
+
+    private static void confirmSelection() {
         if (selectedSlot != -1 && ClientAbilityState.slots.containsKey(selectedSlot)) {
             ClientPacketDistributor.sendToServer(new ToggleAbilityPacket(selectedSlot));
         }
         selectedSlot = -1;
+    }
+
+    public static boolean isSuppressed() {
+        return suppressUntilRelease;
+    }
+
+    public static void clearSuppress() {
+        suppressUntilRelease = false;
     }
 
     /** Chamado a cada client tick enquanto a roda está aberta. */
@@ -139,11 +163,20 @@ public final class VampireAbilityWheelHud {
         event.setMouseSensitivity(-1.0 / 3.0);
     }
 
-    // Bloqueia ataque/uso de item/pick block (botões do mouse) enquanto a roda está aberta.
+    // Clique do mouse (ataque/uso de item/pick block) confirma a fatia selecionada
+    // e fecha a roda imediatamente, sem precisar soltar a tecla da roda.
     @SubscribeEvent
     public static void onInteractionKey(InputEvent.InteractionKeyMappingTriggered event) {
         if (!open) return;
         event.setCanceled(true);
+        closeWheelViaClick();
+    }
+
+    // Zera o input de movimento enquanto a roda está aberta — mesmo comportamento do inventário.
+    @SubscribeEvent
+    public static void onMovementInput(MovementInputUpdateEvent event) {
+        if (!open) return;
+        event.getInput().keyPresses = Input.EMPTY;
     }
 
     @SubscribeEvent
