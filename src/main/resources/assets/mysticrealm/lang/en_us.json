@@ -18,10 +18,6 @@
   "mysticrealm.configuration.general.debugLogging.tooltip": "Enable debug messages in the console.",
 
   "mysticrealm.configuration.vampire": "Vampire",
-  "mysticrealm.configuration.vampire.bloodDrainAmount": "Passive Blood Drain Amount",
-  "mysticrealm.configuration.vampire.bloodDrainAmount.tooltip": "Amount of blood (0-20 scale) drained passively per interval.",
-  "mysticrealm.configuration.vampire.bloodDrainIntervalSeconds": "Passive Blood Drain Interval (s)",
-  "mysticrealm.configuration.vampire.bloodDrainIntervalSeconds.tooltip": "How often (in seconds) blood drains passively while the player is a vampire.",
   "mysticrealm.configuration.vampire.sunlightDamageEnabled": "Sunlight Damage Enabled",
   "mysticrealm.configuration.vampire.sunlightDamageEnabled.tooltip": "Whether vampires take damage in direct sunlight.",
   "mysticrealm.configuration.vampire.sunlightMaxSurvivalSeconds": "Sunlight Survival Seconds (max rank)",
@@ -44,6 +40,8 @@
   "mysticrealm.configuration.vampire.exsanguinationDamage.tooltip": "Damage dealt per drain interval when an entity's blood pool is empty.",
   "mysticrealm.configuration.vampire.bloodDrainAmountPerInterval": "Blood Drained Per Interval",
   "mysticrealm.configuration.vampire.bloodDrainAmountPerInterval.tooltip": "Blood removed from a target's pool every 5 ticks during active draining.",
+  "mysticrealm.configuration.vampire.bloodSaturationModifier": "Blood Saturation Modifier",
+  "mysticrealm.configuration.vampire.bloodSaturationModifier.tooltip": "Saturation modifier applied via FoodData.eat() when blood is restored (feeding, blood vials). Higher = more saturation buffer per blood point gained.",
 
   "mysticrealm.configuration.vampire.progression": "Vampire Progression",
   "mysticrealm.configuration.progression": "Vampire Progression",

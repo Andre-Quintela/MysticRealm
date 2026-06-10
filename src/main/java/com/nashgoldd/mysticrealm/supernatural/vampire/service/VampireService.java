@@ -37,7 +37,7 @@ public final class VampireService {
         vData.setNearDeath(false);
         // Sangue cheio ao transformar (foodLevel 20 = 100% sangue)
         player.getFoodData().setFoodLevel(20);
-        player.getFoodData().setSaturation(0f);
+        player.getFoodData().setSaturation(5f);
 
         NeoForge.EVENT_BUS.post(new VampireTransformEvent(player, oldRace));
 

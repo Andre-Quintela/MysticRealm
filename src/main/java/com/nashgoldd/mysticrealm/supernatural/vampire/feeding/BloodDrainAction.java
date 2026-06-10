@@ -133,8 +133,9 @@ public final class BloodDrainAction implements ChannelAction {
         int foodApplied = 0;
         if (toApply > 0) {
             FoodData food = actor.getFoodData();
-            food.setFoodLevel(Math.min(20, food.getFoodLevel() + toApply));
-            foodApplied = toApply;
+            int before = food.getFoodLevel();
+            food.eat(toApply, BloodBalance.bloodSaturationModifier());
+            foodApplied = food.getFoodLevel() - before;
             MysticNetwork.syncVampireToClient(actor);
         }
 

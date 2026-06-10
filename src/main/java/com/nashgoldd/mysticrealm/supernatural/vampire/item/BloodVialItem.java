@@ -1,6 +1,7 @@
 package com.nashgoldd.mysticrealm.supernatural.vampire.item;
 
 import com.nashgoldd.mysticrealm.network.MysticNetwork;
+import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,7 +41,7 @@ public class BloodVialItem extends Item {
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
         if (entity instanceof ServerPlayer player && VampireService.isVampire(player)) {
             FoodData food = player.getFoodData();
-            food.setFoodLevel(Math.min(20, food.getFoodLevel() + FOOD_RESTORE));
+            food.eat(FOOD_RESTORE, BloodBalance.bloodSaturationModifier());
             MysticNetwork.syncVampireToClient(player);
             player.sendSystemMessage(Component.literal(
                 "§4[Blood]§r +" + FOOD_RESTORE + " → " + food.getFoodLevel() + "/20"

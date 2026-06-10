@@ -177,12 +177,35 @@ Fase 4d — Obelisco Vampírico (VampireObeliskBlock):
   - Usa DefaultedBlockGeoModel para resolver paths automaticamente
 - OpenObeliskScreenPacket (S→C, sem campos): aciona abertura da GUI no cliente
 - VampireObeliskScreen (extends Screen): GUI com progressão vampírica + lore
-  - Vampiros: rank atual, essência, próximo rank, requisitos
-  - Todos: lore + instrução sobre VampireBloodVial para não-vampiros
+  - Fundo customizado 600x442 (textures/gui/vampire_obelisk_background.png), desenhado via
+    g.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, x, y, 0, 0, W, H, W, H) — textura cheia, fora do atlas de sprites
+  - Título escalado: g.pose().pushMatrix() → g.pose().scale(scale, scale) → g.text(...) com coordenadas divididas pela escala → g.pose().popMatrix()
+  - Vampiros: "Vampire Level" / "Blood Essence" / "Age" em posições fixas (95,297)/(95,335)/(95,373)
+  - Painel de lore em caixa fixa (368,80)-(528,225) com wrap + clipping vertical (LORE_H / LORE_LINE_HEIGHT linhas máx)
+    Estrutura preparada para paginação: List<String> LORE_PAGES + campo lorePage + nextLorePage()/previousLorePage() (sem botões ainda)
+  - Component.translatable("screen.mysticrealm.obelisk.title") — chave OBRIGATÓRIA no lang file (não tem fallback)
 - Registros:
   - MysticBlocks (DeferredRegister.createBlocks) + MysticBlockEntities (DeferredRegister<BlockEntityType<?>>)
   - MysticItems: BlockItem referenciando MysticBlocks.VAMPIRE_OBELISK
   - Ordem em MysticRealm.java: MysticBlocks → MysticBlockEntities → demais registros
+
+Fase 4e — Rework do Sistema de Fome/Saturação Vampírica:
+- Removida a drenagem passiva de sangue por tempo (tickBloodDrain deletado de VampireEventHandler)
+  - Configs removidas: VAMPIRE_BLOOD_DRAIN_AMOUNT / VAMPIRE_BLOOD_DRAIN_INTERVAL_SECONDS (+ traduções en_us.json)
+  - Sangue (foodLevel) não cai mais só por estar parado/passar o tempo
+- Saturação vanilla restaurada: removido o setSaturation(0f) forçado a cada tick em onPlayerTick
+  - Sangue agora drena via exaustão vanilla (correr, pular, lutar, minerar, levar dano) — drena
+    primeiro a saturação, depois o foodLevel quando a saturação chega a 0
+- Alimentação/restauração de sangue agora usa FoodData.eat(nutrition, saturationModifier) em vez de setFoodLevel():
+  - BloodDrainAction.onTick() (acumulador fracionário) e BloodVialItem.finishUsingItem()
+  - eat() já clampa foodLevel em 20 e ajusta saturação proporcionalmente (capada no novo foodLevel)
+- BloodBalance.bloodSaturationModifier() → MysticConfig.BLOOD_SATURATION_MODIFIER (DoubleValue, default 0.6, range 0.0-2.0)
+  - Mesmo modificador do pão vanilla; com eat() vira +1.2 saturação por ponto de food restaurado
+- VampireService.transform(): saturação inicial agora 5f (igual cure()), em vez de 0f —
+  evita que o vampiro recém-transformado já comece perdendo sangue por exaustão
+- NOTA: regenerationThreshold/speedThreshold (escala 0-20, defaults 15/10) — se o
+  run/config/mysticrealm-common.toml tiver valores antigos/incorretos (ex: 20/20),
+  deletar o arquivo para regenerar com os defaults atuais
 
 ---
 
@@ -414,6 +437,10 @@ SCREENS (MC 26.x — método renomeado):
   }
 - extractBackground() → renderiza fundo escuro/panorama (chamado antes do extractRenderState)
 - extractRenderStateWithTooltipAndSubtitles() → método final, chamado pelo engine, chama extractBackground + extractRenderState
+- Texto/UI escalado: g.text() não tem parâmetro de escala — usar g.pose().pushMatrix() / g.pose().scale(sx, sy) / g.pose().popMatrix()
+  e dividir as coordenadas x/y pela escala (o matrix stack escala o espaço de desenho inteiro)
+- Fundo de imagem cheia (fora do atlas de sprites, ex. telas grandes): g.blit(RenderPipelines.GUI_TEXTURED, Identifier, x, y, u, v, width, height, textureWidth, textureHeight)
+  com Identifier apontando para o caminho completo da textura (ex. "textures/gui/nome.png")
 
 RENDERIZAÇÃO DE ENTIDADES (MC 26.x — sistema completamente novo):
 - EntityModel<T extends EntityRenderState> — model parametrizado por RenderState, NÃO pela entidade
@@ -651,7 +678,7 @@ PROBLEMAS CONHECIDOS DO IDE (VS CODE):
 ---
 
 PRÓXIMAS FASES PLANEJADAS:
-- Fase 4e: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
+- Fase 4f: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
 - Fase 5: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
   - Reutilizar IPendingTransformation para WerewolfCurseEffect (mesmo fluxo de morte/transformação)
   - Reutilizar ChannelAction para habilidades ativas do lobisomem

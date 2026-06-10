@@ -32,4 +32,8 @@ public final class BloodBalance {
     public static float foodPerInterval() {
         return 4.0f / 12.0f;
     }
+
+    public static float bloodSaturationModifier() {
+        return MysticConfig.BLOOD_SATURATION_MODIFIER.get().floatValue();
+    }
 }

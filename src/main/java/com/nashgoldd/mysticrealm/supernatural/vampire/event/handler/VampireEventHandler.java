@@ -33,7 +33,6 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -68,9 +67,6 @@ public class VampireEventHandler {
 
         VampireData data = VampireService.getData(player);
 
-        // Manter saturação zero — evita regeneração vanilla interferir com nossa lógica
-        sp.getFoodData().setSaturation(0f);
-
         // Tick do sistema de canalização (drenagem de sangue, etc.)
         ChannelService.tick(sp);
         if (sp.tickCount % 5 == 0) {
@@ -78,7 +74,6 @@ public class VampireEventHandler {
         }
 
         VampireProgressionService.tickAge(sp);
-        tickBloodDrain(sp);
         tickSunlight(sp, data, level);
         tickPassiveEffects(sp);
         tickNearDeath(sp, data);
@@ -99,19 +94,6 @@ public class VampireEventHandler {
             if (MysticEffects.VAMPIRE_INFECTION.get() instanceof IPendingTransformation pending) {
                 pending.onExpire(player);
             }
-        }
-    }
-
-    private void tickBloodDrain(ServerPlayer player) {
-        int intervalTicks = MysticConfig.VAMPIRE_BLOOD_DRAIN_INTERVAL_SECONDS.get() * 20;
-        if (intervalTicks <= 0) return;
-
-        if (player.tickCount % intervalTicks == 0) {
-            FoodData food = player.getFoodData();
-            int drainUnits = Math.max(1, MysticConfig.VAMPIRE_BLOOD_DRAIN_AMOUNT.get());
-            food.setFoodLevel(Math.max(0, food.getFoodLevel() - drainUnits));
-            MysticNetwork.syncVampireToClient(player);
-            MysticRealmLogger.debug("Drenagem de sangue: -{} food unit(s) → {}/20", drainUnits, food.getFoodLevel());
         }
     }
 

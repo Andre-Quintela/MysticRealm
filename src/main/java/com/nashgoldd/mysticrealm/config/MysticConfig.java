@@ -12,8 +12,6 @@ public final class MysticConfig {
 
     // ── Vampiro ───────────────────────────────────────────────────────────────
 
-    public static final ModConfigSpec.IntValue VAMPIRE_BLOOD_DRAIN_AMOUNT;
-    public static final ModConfigSpec.IntValue VAMPIRE_BLOOD_DRAIN_INTERVAL_SECONDS;
     public static final ModConfigSpec.BooleanValue VAMPIRE_SUNLIGHT_DAMAGE_ENABLED;
     public static final ModConfigSpec.DoubleValue VAMPIRE_SUNLIGHT_MAX_SURVIVAL_SECONDS;
     public static final ModConfigSpec.IntValue VAMPIRE_REGENERATION_THRESHOLD;
@@ -33,6 +31,7 @@ public final class MysticConfig {
     public static final ModConfigSpec.IntValue    ENTITY_BLOOD_REGEN_INTERVAL_TICKS;
     public static final ModConfigSpec.DoubleValue ENTITY_EXSANGUINATION_DAMAGE;
     public static final ModConfigSpec.DoubleValue BLOOD_DRAIN_AMOUNT_PER_INTERVAL;
+    public static final ModConfigSpec.DoubleValue BLOOD_SATURATION_MODIFIER;
 
     // ── Progressão vampírica ──────────────────────────────────────────────────
 
@@ -74,14 +73,6 @@ public final class MysticConfig {
         BUILDER.pop();
 
         BUILDER.comment("Configurações do sistema vampírico").push("vampire");
-
-        VAMPIRE_BLOOD_DRAIN_AMOUNT = BUILDER
-            .translation("mysticrealm.configuration.vampire.bloodDrainAmount")
-            .defineInRange("bloodDrainAmount", 1, 0, Integer.MAX_VALUE);
-
-        VAMPIRE_BLOOD_DRAIN_INTERVAL_SECONDS = BUILDER
-            .translation("mysticrealm.configuration.vampire.bloodDrainIntervalSeconds")
-            .defineInRange("bloodDrainIntervalSeconds", 60, 1, Integer.MAX_VALUE);
 
         VAMPIRE_SUNLIGHT_DAMAGE_ENABLED = BUILDER
             .translation("mysticrealm.configuration.vampire.sunlightDamageEnabled")
@@ -126,6 +117,10 @@ public final class MysticConfig {
         BLOOD_DRAIN_AMOUNT_PER_INTERVAL = BUILDER
             .translation("mysticrealm.configuration.vampire.bloodDrainAmountPerInterval")
             .defineInRange("bloodDrainAmountPerInterval", 0.5, 0.0, Double.MAX_VALUE);
+
+        BLOOD_SATURATION_MODIFIER = BUILDER
+            .translation("mysticrealm.configuration.vampire.bloodSaturationModifier")
+            .defineInRange("bloodSaturationModifier", 0.6, 0.0, 2.0);
 
         BUILDER.comment("Progressão vampírica (rank, essência, idade)").push("progression");
 
