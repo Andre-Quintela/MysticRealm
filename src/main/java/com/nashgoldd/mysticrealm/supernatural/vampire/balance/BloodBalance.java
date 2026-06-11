@@ -8,7 +8,7 @@ public final class BloodBalance {
     private BloodBalance() {}
 
     public static float maxBloodForEntity(LivingEntity entity) {
-        return Math.max(1.0f, entity.getMaxHealth());
+        return Math.max(1.0f, entity.getMaxHealth() / 2.0f);
     }
 
     public static float drainAmountPerInterval() {
@@ -26,11 +26,6 @@ public final class BloodBalance {
 
     public static int bloodRegenIntervalTicks() {
         return MysticConfig.ENTITY_BLOOD_REGEN_INTERVAL_TICKS.get();
-    }
-
-    // Total de +4 food por drenagem completa (60 ticks / 5 ticks por intervalo = 12 intervalos)
-    public static float foodPerInterval() {
-        return 4.0f / 12.0f;
     }
 
     public static float bloodSaturationModifier() {

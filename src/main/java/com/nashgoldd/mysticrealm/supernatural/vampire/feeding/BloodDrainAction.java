@@ -8,7 +8,6 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainCancelEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainCompleteEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainInterruptedEvent;
-import com.nashgoldd.mysticrealm.supernatural.vampire.essence.BloodEssenceRegistry;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainStartEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodDrainTickEvent;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.BloodPoolChangedEvent;
@@ -38,11 +37,9 @@ public final class BloodDrainAction implements ChannelAction {
     public static final BloodDrainAction INSTANCE = new BloodDrainAction();
     public static final String ID = "blood_drain";
 
-    // Acumula food fracionário por vampiro para aplicar de forma contínua
-    private static final Map<UUID, Float> bloodAccumulator = new HashMap<>();
-
-    // Acumula essência fracionária por vampiro — necessário pois base*fraction é < 1 para animais pequenos
-    private static final Map<UUID, Double> essenceAccumulator = new HashMap<>();
+    // Acumula sangue fracionário drenado por vampiro — convertido 1:1 em food units e essência
+    // quando atinge >= 1 (necessário pois drainAmountPerInterval costuma ser < 1)
+    private static final Map<UUID, Double> drainAccumulator = new HashMap<>();
 
     // Rastreia se sangue foi drenado nesta sessão — safe stop só dispara se o pool
     // esvaziou DURANTE a ação, não se já estava vazio ao iniciar
@@ -88,6 +85,7 @@ public final class BloodDrainAction implements ChannelAction {
         EntityBloodData bloodData = EntityBloodData.getOrInit(target);
         float oldBlood = bloodData.getCurrentBlood();
         boolean wasEmpty = bloodData.isEmpty();
+        float actuallyDrained = 0f;
 
         if (bloodData.isEmpty()) {
             // Exsanguinação: pool esgotado — aplica dano periódico
@@ -95,23 +93,9 @@ public final class BloodDrainAction implements ChannelAction {
             target.hurtServer(sl, sl.damageSources().playerAttack(actor), dmg);
         } else {
             // Drenar do pool da entidade
-            float actuallyDrained = bloodData.drain(BloodBalance.drainAmountPerInterval());
+            actuallyDrained = bloodData.drain(BloodBalance.drainAmountPerInterval());
             target.setData(MysticAttachments.ENTITY_BLOOD, bloodData);
             drainedThisSession.add(actor.getUUID());
-
-            // Essência proporcional ao sangue drenado — acumulada para evitar arredondamento para zero
-            float maxBlood = bloodData.getMaxBlood();
-            if (maxBlood > 0 && actuallyDrained > 0) {
-                float fraction = actuallyDrained / maxBlood;
-                double essenceFrac = BloodEssenceRegistry.getBaseEssence(target) * fraction;
-                UUID uid = actor.getUUID();
-                double accumulated = essenceAccumulator.getOrDefault(uid, 0.0) + essenceFrac;
-                long toGrant = (long) accumulated;
-                essenceAccumulator.put(uid, accumulated - toGrant);
-                if (toGrant > 0) {
-                    VampireProgressionService.grantEssence(actor, toGrant, target);
-                }
-            }
 
             float newBlood = bloodData.getCurrentBlood();
 
@@ -124,19 +108,23 @@ public final class BloodDrainAction implements ChannelAction {
             }
         }
 
-        // ── Acumulador fracionário de food para o vampiro ─────────────────────
+        // ── Acumulador fracionário de sangue drenado — converte 1:1 em food + essência ──
         UUID uid = actor.getUUID();
-        float accumulated = bloodAccumulator.getOrDefault(uid, 0f) + BloodBalance.foodPerInterval();
-        int toApply = (int) accumulated;
-        bloodAccumulator.put(uid, accumulated - toApply);
-
         int foodApplied = 0;
-        if (toApply > 0) {
-            FoodData food = actor.getFoodData();
-            int before = food.getFoodLevel();
-            food.eat(toApply, BloodBalance.bloodSaturationModifier());
-            foodApplied = food.getFoodLevel() - before;
-            MysticNetwork.syncVampireToClient(actor);
+        if (actuallyDrained > 0) {
+            double accumulated = drainAccumulator.getOrDefault(uid, 0.0) + actuallyDrained;
+            long toGrant = (long) accumulated;
+            drainAccumulator.put(uid, accumulated - toGrant);
+
+            if (toGrant > 0) {
+                VampireProgressionService.grantEssence(actor, toGrant, target);
+
+                FoodData food = actor.getFoodData();
+                int before = food.getFoodLevel();
+                food.eat((int) toGrant, BloodBalance.bloodSaturationModifier());
+                foodApplied = food.getFoodLevel() - before;
+                MysticNetwork.syncVampireToClient(actor);
+            }
         }
 
         NeoForge.EVENT_BUS.post(new BloodDrainTickEvent(
@@ -147,8 +135,7 @@ public final class BloodDrainAction implements ChannelAction {
 
     @Override
     public void onComplete(LivingEntity target, ServerPlayer actor) {
-        bloodAccumulator.remove(actor.getUUID());
-        essenceAccumulator.remove(actor.getUUID());
+        drainAccumulator.remove(actor.getUUID());
         drainedThisSession.remove(actor.getUUID());
 
         // Penalidade de Fraqueza na vítima (mantida do sistema original)
@@ -169,8 +156,7 @@ public final class BloodDrainAction implements ChannelAction {
 
     @Override
     public void onInterrupt(LivingEntity target, ServerPlayer actor, String reason) {
-        bloodAccumulator.remove(actor.getUUID());
-        essenceAccumulator.remove(actor.getUUID());
+        drainAccumulator.remove(actor.getUUID());
         drainedThisSession.remove(actor.getUUID());
 
         if ("cancel".equals(reason)) {
@@ -182,8 +168,7 @@ public final class BloodDrainAction implements ChannelAction {
     }
 
     public static void clearAccumulator(UUID playerId) {
-        bloodAccumulator.remove(playerId);
-        essenceAccumulator.remove(playerId);
+        drainAccumulator.remove(playerId);
         drainedThisSession.remove(playerId);
     }
 }

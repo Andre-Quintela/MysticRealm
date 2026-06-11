@@ -207,6 +207,25 @@ Fase 4e — Rework do Sistema de Fome/Saturação Vampírica:
   run/config/mysticrealm-common.toml tiver valores antigos/incorretos (ex: 20/20),
   deletar o arquivo para regenerar com os defaults atuais
 
+Fase 4f — Unificação do Sistema de "Quantidade de Sangue" das Criaturas:
+- BloodEssenceRegistry removido por completo (tabela fixa "1L, 2L, 3L..." por EntityType)
+  - Substituído por uma única fórmula em BloodBalance.maxBloodForEntity():
+    maxBlood = Math.max(1.0f, entity.getMaxHealth() / 2.0f)
+  - Esse valor agora representa, ao mesmo tempo: o tamanho do pool de sangue da vítima
+    (EntityBloodData.maxBlood), o total de essência de sangue e o total de food units
+    que o vampiro ganha ao drenar o pool inteiro
+  - Ex: criatura com 20 HP → pool = 10 → drenar tudo rende 10 food units + 10 de essência
+- BloodBalance.foodPerInterval() removido (era fixo, +4 food por drenagem completa
+  independente da criatura)
+- BloodDrainAction: bloodAccumulator (Float) + essenceAccumulator (Double) fundidos em
+  um único drainAccumulator (Map<UUID, Double>) — a cada intervalo de 5 ticks acumula
+  actuallyDrained (sangue efetivamente drenado do pool); ao atingir >= 1, concede o
+  mesmo valor inteiro via VampireProgressionService.grantEssence() E FoodData.eat()
+- MysticNetwork.syncDrainToClient(): no branch "hovering" (sem drenagem ativa), agora
+  só calcula/exibe o blood pool se DrainableEntityRegistry.isValidTarget(hovered, player)
+  — antes qualquer LivingEntity próximo (zumbi, esqueleto, etc.) aparecia com uma barra
+  de sangue na HUD mesmo não sendo drenável
+
 ---
 
 ESTRUTURA DE PACOTES:
@@ -268,7 +287,6 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   │   └── VampireObeliskRenderer.java          ← GeoBlockRenderer (GeckoLib 5.x)
     │   └── screen/VampireObeliskScreen.java         ← GUI de progressão + lore
     ├── entity/HostileVampireEntity.java        ← mob hostil, AnimationState, spawn rules
-    ├── essence/BloodEssenceRegistry.java       ← essência base por EntityType
     ├── event/
     │   ├── BloodDrainStartEvent.java
     │   ├── BloodDrainTickEvent.java
@@ -290,7 +308,7 @@ src/main/java/com/nashgoldd/mysticrealm/
     │   └── PlayerVampireTransformationEvent.java ← ao morrer com infecção (cancellable)
     ├── event/handler/VampireEventHandler.java
     ├── feeding/
-    │   ├── BloodDrainAction.java               ← bloodAccumulator + essenceAccumulator (fracionários)
+    │   ├── BloodDrainAction.java               ← drainAccumulator (fracionário, único — food + essência)
     │   └── DrainableEntityRegistry.java
     ├── effect/
     │   └── VampireInfectionEffect.java         ← MobEffect + IPendingTransformation
@@ -582,7 +600,7 @@ CONFIG SCREEN (NeoForge):
   → adicionar AMBAS as chaves no lang (com e sem o pai) por segurança
 - Tooltip: "mysticrealm.configuration.{seção}.{chave}.tooltip" no lang file
 - Formato de acumuladores fracionários (padrão do projeto):
-  - bloodAccumulator / essenceAccumulator em BloodDrainAction (Map<UUID, Float/Double>)
+  - drainAccumulator em BloodDrainAction (Map<UUID, Double>)
   - Acumula valor fracionário por tick e só aplica inteiros — evita arredondamento para zero
 - Config em disco (.toml) desatualizado causa loop no FileWatcher — deletar o arquivo para regenerar
 
@@ -696,7 +714,7 @@ PROBLEMAS CONHECIDOS DO IDE (VS CODE):
 ---
 
 PRÓXIMAS FASES PLANEJADAS:
-- Fase 4f: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
+- Fase 4g: Poderes por Rank (RankBenefitsRegistry — ganchos já existem via VampireRankChangedEvent)
 - Fase 5: Lobisomens (RaceResource RAGE, transformação lunar, habilidades físicas)
   - Reutilizar IPendingTransformation para WerewolfCurseEffect (mesmo fluxo de morte/transformação)
   - Reutilizar ChannelAction para habilidades ativas do lobisomem

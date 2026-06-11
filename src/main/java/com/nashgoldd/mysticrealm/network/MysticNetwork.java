@@ -8,6 +8,7 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
+import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.DrainableEntityRegistry;
 import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainPacket;
@@ -144,7 +145,7 @@ public final class MysticNetwork {
             float bloodCurrent = 0f;
             float bloodMax = 0f;
             LivingEntity hovered = findHoveredLivingEntity(player, 5.0);
-            if (hovered != null) {
+            if (hovered != null && DrainableEntityRegistry.isValidTarget(hovered, player)) {
                 if (hovered.hasData(MysticAttachments.ENTITY_BLOOD)) {
                     EntityBloodData bd = hovered.getData(MysticAttachments.ENTITY_BLOOD);
                     if (bd.isInitialized()) {
