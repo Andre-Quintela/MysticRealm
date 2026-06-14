@@ -2,17 +2,22 @@ package com.nashgoldd.mysticrealm.supernatural.vampire.client.screen;
 
 import com.nashgoldd.mysticrealm.MysticRealm;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.client.ClientStructureFeedback;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireRank;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.List;
 
@@ -41,14 +46,40 @@ public class VampireObeliskScreen extends Screen {
         "In ages past, the ancient ones raised these pillars to guide the newly risen through the darkness..."
     );
 
-    private int lorePage = 0;
+    private static final int VALIDATE_BUTTON_X = W / 2 - 60, VALIDATE_BUTTON_Y = H - 30;
+    private static final int VALIDATE_BUTTON_W = 120, VALIDATE_BUTTON_H = 20;
+    private static final int FEEDBACK_X = W / 2, FEEDBACK_Y = H - 50;
+    private static final int FEEDBACK_COLOR_OK = 0xFF55FF55;
+    private static final int FEEDBACK_COLOR_BAD = 0xFFFF5555;
 
-    public VampireObeliskScreen() {
+    private int lorePage = 0;
+    private final BlockPos obeliskPos;
+
+    public VampireObeliskScreen(BlockPos obeliskPos) {
         super(Component.translatable("screen.mysticrealm.obelisk.title"));
+        this.obeliskPos = obeliskPos;
     }
 
     @Override
-    protected void init() {}
+    protected void init() {
+        float scale = guiScale();
+        float offsetX = (width - W * scale) / 2f;
+        float offsetY = (height - H * scale) / 2f;
+
+        addRenderableWidget(Button.builder(Component.translatable("screen.mysticrealm.obelisk.validate"),
+                button -> ClientPacketDistributor.sendToServer(new RequestStructureValidationPacket(obeliskPos)))
+            .bounds(
+                (int) (offsetX + VALIDATE_BUTTON_X * scale),
+                (int) (offsetY + VALIDATE_BUTTON_Y * scale),
+                (int) (VALIDATE_BUTTON_W * scale),
+                (int) (VALIDATE_BUTTON_H * scale)
+            )
+            .build());
+    }
+
+    private float guiScale() {
+        return Math.min(1.0f, Math.min((width - MARGIN) / (float) W, (height - MARGIN) / (float) H));
+    }
 
     private static final int MARGIN = 20;
 
@@ -58,7 +89,7 @@ public class VampireObeliskScreen extends Screen {
         Font font = Minecraft.getInstance().font;
 
         // Escala a GUI para baixo quando a tela for menor que 600x442 (nunca amplia além de 1.0)
-        float scale = Math.min(1.0f, Math.min((width - MARGIN) / (float) W, (height - MARGIN) / (float) H));
+        float scale = guiScale();
         float offsetX = (width - W * scale) / 2f;
         float offsetY = (height - H * scale) / 2f;
 
@@ -92,6 +123,14 @@ public class VampireObeliskScreen extends Screen {
 
         // Painel de Lore
         renderLore(g, font);
+
+        // Feedback da última validação de estrutura (se houver e ainda não expirou)
+        if (ClientStructureFeedback.isActive() && obeliskPos.equals(ClientStructureFeedback.controllerPos)) {
+            String feedbackText = "Estrutura: " + (int) ClientStructureFeedback.percentCompleted + "%";
+            int feedbackColor = ClientStructureFeedback.valid ? FEEDBACK_COLOR_OK : FEEDBACK_COLOR_BAD;
+            int textX = FEEDBACK_X - font.width(feedbackText) / 2;
+            g.text(font, feedbackText, textX, FEEDBACK_Y, feedbackColor, false);
+        }
 
         g.pose().popMatrix();
     }

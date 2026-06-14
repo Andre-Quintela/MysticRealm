@@ -2,6 +2,8 @@ package com.nashgoldd.mysticrealm.network;
 
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.client.ClientStructureFeedback;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.ClientAbilityState;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.ClientDrainState;
@@ -68,7 +70,11 @@ public final class ClientPacketHandlers {
     }
 
     public static void handleOpenObeliskScreen(OpenObeliskScreenPacket packet, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> Minecraft.getInstance().setScreen(new VampireObeliskScreen()));
+        ctx.enqueueWork(() -> Minecraft.getInstance().setScreen(new VampireObeliskScreen(packet.pos())));
+    }
+
+    public static void handleSyncStructureValidation(SyncStructureValidationPacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> ClientStructureFeedback.update(packet));
     }
 
     public static void handleSyncAbilityData(SyncAbilityDataPacket packet, IPayloadContext ctx) {

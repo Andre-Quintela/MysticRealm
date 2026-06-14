@@ -4,6 +4,8 @@ import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelState;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureValidationPacket;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.balance.BloodBalance;
@@ -70,6 +72,11 @@ public final class MysticNetwork {
             SyncAbilityDataPacket.STREAM_CODEC,
             ClientPacketHandlers::handleSyncAbilityData
         );
+        registrar.playToClient(
+            SyncStructureValidationPacket.TYPE,
+            SyncStructureValidationPacket.STREAM_CODEC,
+            ClientPacketHandlers::handleSyncStructureValidation
+        );
 
         // Cliente → Servidor
         registrar.playToServer(
@@ -86,6 +93,11 @@ public final class MysticNetwork {
             ToggleAbilityPacket.TYPE,
             ToggleAbilityPacket.STREAM_CODEC,
             ServerPacketHandlers::handleToggleAbility
+        );
+        registrar.playToServer(
+            RequestStructureValidationPacket.TYPE,
+            RequestStructureValidationPacket.STREAM_CODEC,
+            ServerPacketHandlers::handleRequestStructureValidation
         );
     }
 

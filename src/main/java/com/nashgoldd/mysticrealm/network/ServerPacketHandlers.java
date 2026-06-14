@@ -4,6 +4,11 @@ import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.ability.AbilityRegistry;
 import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.IMultiblockController;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.MultiblockValidationResult;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.effect.MultiblockFeedbackEffects;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureValidationPacket;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.DrainableEntityRegistry;
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.CancelBloodDrainPacket;
@@ -11,9 +16,12 @@ import com.nashgoldd.mysticrealm.supernatural.vampire.network.RequestBloodDrainP
 import com.nashgoldd.mysticrealm.supernatural.vampire.network.ToggleAbilityPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ServerPacketHandlers {
@@ -47,6 +55,20 @@ public final class ServerPacketHandlers {
         ctx.enqueueWork(() -> {
             if (!(ctx.player() instanceof ServerPlayer player)) return;
             ChannelService.cancel(player);
+        });
+    }
+
+    public static void handleRequestStructureValidation(RequestStructureValidationPacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) return;
+            if (!(player.level() instanceof ServerLevel serverLevel)) return;
+
+            BlockEntity blockEntity = serverLevel.getBlockEntity(packet.controllerPos());
+            if (!(blockEntity instanceof IMultiblockController controller)) return;
+
+            MultiblockValidationResult result = controller.revalidate(serverLevel);
+            PacketDistributor.sendToPlayer(player, SyncStructureValidationPacket.from(packet.controllerPos(), result));
+            MultiblockFeedbackEffects.spawnFeedbackParticles(serverLevel, result);
         });
     }
 

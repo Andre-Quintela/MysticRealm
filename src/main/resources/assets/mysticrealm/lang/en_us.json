@@ -2,6 +2,7 @@
   "block.mysticrealm.vampire_obelisk": "Vampire Obelisk",
   "itemGroup.mysticrealm.main": "Mystic Realm",
   "screen.mysticrealm.obelisk.title": "Vampire Obelisk",
+  "screen.mysticrealm.obelisk.validate": "Validate Structure",
 
   "mysticrealm.configuration.title": "MysticRealm Configuration",
   "mysticrealm.configuration.section.mysticrealm-common.toml": "MysticRealm",
@@ -105,7 +106,6 @@
   "item.mysticrealm.vampire_blood_vial": "Vampire Blood Vial",
   "item.mysticrealm.hostile_vampire_spawn_egg": "Hostile Vampire Spawn Egg",
   "death.attack.mysticrealm.sunlight": "%1$s was burned by sunlight",
-  "itemGroup.mysticrealm.main": "Mystic Realm",
   "key.category.mysticrealm.mysticrealm": "Mystic Realm",
   "key.mysticrealm.drain_blood": "Drain Blood",
   "key.mysticrealm.ability_wheel": "Ability Wheel"

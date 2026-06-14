@@ -14,6 +14,7 @@ import com.nashgoldd.mysticrealm.registry.MysticItems;
 import com.nashgoldd.mysticrealm.registry.MysticParticles;
 import com.nashgoldd.mysticrealm.supernatural.vampire.ability.VampireAbilities;
 import com.nashgoldd.mysticrealm.supernatural.vampire.entity.HostileVampireEntity;
+import com.nashgoldd.mysticrealm.supernatural.vampire.multiblock.VampireStructures;
 import com.nashgoldd.mysticrealm.supernatural.vampire.event.handler.VampireEventHandler;
 import com.nashgoldd.mysticrealm.util.MysticRealmLogger;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -48,6 +49,7 @@ public class MysticRealm {
         modContainer.registerConfig(ModConfig.Type.COMMON, MysticConfig.SPEC, "mysticrealm-common.toml");
 
         VampireAbilities.register();
+        VampireStructures.register();
 
         NeoForge.EVENT_BUS.register(new PlayerEventHandler());
         NeoForge.EVENT_BUS.register(new VampireEventHandler());
