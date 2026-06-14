@@ -3,6 +3,11 @@
   "itemGroup.mysticrealm.main": "Mystic Realm",
   "screen.mysticrealm.obelisk.title": "Vampire Obelisk",
   "screen.mysticrealm.obelisk.validate": "Validate Structure",
+  "screen.mysticrealm.obelisk.build": "Build Structure",
+  "screen.mysticrealm.obelisk.build.success": "Structure built!",
+  "screen.mysticrealm.obelisk.build.alreadyComplete": "Structure already complete",
+  "screen.mysticrealm.obelisk.build.insufficientHealth": "Not enough health",
+  "screen.mysticrealm.obelisk.build.missingItems": "Missing: ",
 
   "mysticrealm.configuration.title": "MysticRealm Configuration",
   "mysticrealm.configuration.section.mysticrealm-common.toml": "MysticRealm",
@@ -87,6 +92,12 @@
   "mysticrealm.configuration.vampire.spawn.vampireSpawnMinGroup.tooltip": "Minimum number of Hostile Vampires per spawn group. Changes require a restart.",
   "mysticrealm.configuration.vampire.spawn.vampireSpawnMaxGroup": "Maximum Group Size",
   "mysticrealm.configuration.vampire.spawn.vampireSpawnMaxGroup.tooltip": "Maximum number of Hostile Vampires per spawn group. Changes require a restart.",
+
+  "mysticrealm.configuration.multiblock": "Multiblock",
+  "mysticrealm.configuration.multiblock.buildHealthCostPerBlock": "Build Health Cost Per Block",
+  "mysticrealm.configuration.multiblock.buildHealthCostPerBlock.tooltip": "Health drained from the player for each block automatically placed when building a multiblock structure (e.g. via the Vampire Obelisk's Build Structure button). 1.0 = half a heart.",
+  "mysticrealm.configuration.multiblock.buildDelayTicks": "Build Delay Per Block (ticks)",
+  "mysticrealm.configuration.multiblock.buildDelayTicks.tooltip": "Delay in ticks between each block placed during automatic structure construction. 20 = 1 second.",
 
   "mysticrealm.configuration.infection": "Vampiric Infection",
   "mysticrealm.configuration.infection.infectionDurationSeconds": "Infection Duration (Seconds)",

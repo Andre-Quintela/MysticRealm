@@ -4,7 +4,9 @@ import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelState;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureBuildPacket;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureValidationPacket;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureBuildResultPacket;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.EntityBloodData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
@@ -77,6 +79,11 @@ public final class MysticNetwork {
             SyncStructureValidationPacket.STREAM_CODEC,
             ClientPacketHandlers::handleSyncStructureValidation
         );
+        registrar.playToClient(
+            SyncStructureBuildResultPacket.TYPE,
+            SyncStructureBuildResultPacket.STREAM_CODEC,
+            ClientPacketHandlers::handleSyncStructureBuildResult
+        );
 
         // Cliente → Servidor
         registrar.playToServer(
@@ -98,6 +105,11 @@ public final class MysticNetwork {
             RequestStructureValidationPacket.TYPE,
             RequestStructureValidationPacket.STREAM_CODEC,
             ServerPacketHandlers::handleRequestStructureValidation
+        );
+        registrar.playToServer(
+            RequestStructureBuildPacket.TYPE,
+            RequestStructureBuildPacket.STREAM_CODEC,
+            ServerPacketHandlers::handleRequestStructureBuild
         );
     }
 

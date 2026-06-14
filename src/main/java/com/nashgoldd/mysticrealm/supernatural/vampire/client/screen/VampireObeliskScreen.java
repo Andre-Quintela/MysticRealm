@@ -1,10 +1,14 @@
 package com.nashgoldd.mysticrealm.supernatural.vampire.client.screen;
 
 import com.nashgoldd.mysticrealm.MysticRealm;
+import com.nashgoldd.mysticrealm.client.gui.widget.TexturedButton;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.client.ClientBuildFeedback;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.client.ClientStructureFeedback;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureBuildPacket;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
+import com.nashgoldd.mysticrealm.supernatural.vampire.multiblock.VampireStructures;
 import com.nashgoldd.mysticrealm.supernatural.vampire.progression.VampireRank;
 import com.nashgoldd.mysticrealm.supernatural.vampire.service.VampireService;
 import net.minecraft.client.Minecraft;
@@ -17,6 +21,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.List;
@@ -46,14 +51,30 @@ public class VampireObeliskScreen extends Screen {
         "In ages past, the ancient ones raised these pillars to guide the newly risen through the darkness..."
     );
 
-    private static final int VALIDATE_BUTTON_X = W / 2 - 60, VALIDATE_BUTTON_Y = H - 30;
     private static final int VALIDATE_BUTTON_W = 120, VALIDATE_BUTTON_H = 20;
+    private static final int VALIDATE_BUTTON_X = W / 2 - VALIDATE_BUTTON_W / 2, VALIDATE_BUTTON_Y = H - 30;
     private static final int FEEDBACK_X = W / 2, FEEDBACK_Y = H - 50;
     private static final int FEEDBACK_COLOR_OK = 0xFF55FF55;
     private static final int FEEDBACK_COLOR_BAD = 0xFFFF5555;
+    private static final int FEEDBACK_COLOR_NEUTRAL = 0xFFDDDDDD;
+
+    // Painel de informações do Blood Altar
+    private static final int ALTAR_PANEL_X = 357, ALTAR_PANEL_Y = 279;
+    private static final int ALTAR_PANEL_W = 186, ALTAR_PANEL_H = 111;
+    private static final int ALTAR_LEVEL_X = ALTAR_PANEL_X + 10, ALTAR_LEVEL_Y = ALTAR_PANEL_Y + 10;
+
+    private static final int PANEL_BUILD_BUTTON_W = 142, PANEL_BUILD_BUTTON_H = 33;
+    private static final int PANEL_BUILD_BUTTON_X = ALTAR_PANEL_X + (ALTAR_PANEL_W - PANEL_BUILD_BUTTON_W) / 2;
+    private static final int PANEL_BUILD_BUTTON_Y = ALTAR_PANEL_Y + ALTAR_PANEL_H - PANEL_BUILD_BUTTON_H - 12;
+    private static final Identifier BUILD_BUTTON_SPRITE =
+        Identifier.fromNamespaceAndPath(MysticRealm.MODID, "build_button");
+
+    private static final int BUILD_FEEDBACK_X = ALTAR_PANEL_X + ALTAR_PANEL_W / 2;
+    private static final int BUILD_FEEDBACK_Y = PANEL_BUILD_BUTTON_Y + PANEL_BUILD_BUTTON_H + 4;
 
     private int lorePage = 0;
     private final BlockPos obeliskPos;
+    private TexturedButton buildButton;
 
     public VampireObeliskScreen(BlockPos obeliskPos) {
         super(Component.translatable("screen.mysticrealm.obelisk.title"));
@@ -75,6 +96,17 @@ public class VampireObeliskScreen extends Screen {
                 (int) (VALIDATE_BUTTON_H * scale)
             )
             .build());
+
+        buildButton = TexturedButton.create(
+            Component.translatable("screen.mysticrealm.obelisk.build"),
+            BUILD_BUTTON_SPRITE, VALUE_COLOR,
+            (int) (offsetX + PANEL_BUILD_BUTTON_X * scale),
+            (int) (offsetY + PANEL_BUILD_BUTTON_Y * scale),
+            (int) (PANEL_BUILD_BUTTON_W * scale),
+            (int) (PANEL_BUILD_BUTTON_H * scale),
+            button -> ClientPacketDistributor.sendToServer(new RequestStructureBuildPacket(obeliskPos))
+        );
+        addRenderableWidget(buildButton);
     }
 
     private float guiScale() {
@@ -121,6 +153,9 @@ public class VampireObeliskScreen extends Screen {
             g.text(font, "Age: " + formatAge(ageTicks), AGE_X, AGE_Y, VALUE_COLOR, false);
         }
 
+        // Painel de informações do Blood Altar
+        g.text(font, "Altar Level: " + VampireStructures.BLOOD_ALTAR_LVL1.tier(), ALTAR_LEVEL_X, ALTAR_LEVEL_Y, VALUE_COLOR, false);
+
         // Painel de Lore
         renderLore(g, font);
 
@@ -132,7 +167,46 @@ public class VampireObeliskScreen extends Screen {
             g.text(font, feedbackText, textX, FEEDBACK_Y, feedbackColor, false);
         }
 
+        // Feedback da última tentativa de construção automática (se houver e ainda não expirou)
+        if (ClientBuildFeedback.isActive() && obeliskPos.equals(ClientBuildFeedback.controllerPos)) {
+            String buildText = buildFeedbackText();
+            int buildColor = buildFeedbackColor();
+            int textX = BUILD_FEEDBACK_X - font.width(buildText) / 2;
+            g.text(font, buildText, textX, BUILD_FEEDBACK_Y, buildColor, false);
+        }
+
         g.pose().popMatrix();
+
+        // Desenhado depois do fundo da tela, para garantir que apareça por cima dele.
+        buildButton.renderDecoration(g, scale);
+    }
+
+    private String buildFeedbackText() {
+        return switch (ClientBuildFeedback.reason) {
+            case SUCCESS -> Component.translatable("screen.mysticrealm.obelisk.build.success").getString()
+                + " (-" + String.format("%.1f", ClientBuildFeedback.healthCost) + ")";
+            case ALREADY_COMPLETE -> Component.translatable("screen.mysticrealm.obelisk.build.alreadyComplete").getString();
+            case INSUFFICIENT_HEALTH -> Component.translatable("screen.mysticrealm.obelisk.build.insufficientHealth").getString()
+                + " (" + String.format("%.1f", ClientBuildFeedback.healthCost) + ")";
+            case MISSING_ITEMS -> {
+                StringBuilder sb = new StringBuilder(Component.translatable("screen.mysticrealm.obelisk.build.missingItems").getString());
+                List<ItemStack> missing = ClientBuildFeedback.missingItems;
+                for (int i = 0; i < missing.size(); i++) {
+                    ItemStack stack = missing.get(i);
+                    if (i > 0) sb.append(", ");
+                    sb.append(stack.getCount()).append("x ").append(stack.getHoverName().getString());
+                }
+                yield sb.toString();
+            }
+        };
+    }
+
+    private int buildFeedbackColor() {
+        return switch (ClientBuildFeedback.reason) {
+            case SUCCESS -> FEEDBACK_COLOR_OK;
+            case ALREADY_COMPLETE -> FEEDBACK_COLOR_NEUTRAL;
+            case INSUFFICIENT_HEALTH, MISSING_ITEMS -> FEEDBACK_COLOR_BAD;
+        };
     }
 
     private void renderLore(GuiGraphicsExtractor g, Font font) {

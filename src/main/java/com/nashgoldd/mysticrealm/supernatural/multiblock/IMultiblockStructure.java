@@ -14,6 +14,8 @@ public interface IMultiblockStructure {
 
     MultiblockPattern pattern();
 
+    int tier();
+
     default MultiblockValidationResult validate(Level level, BlockPos center) {
         return MultiblockValidator.validate(level, center, pattern());
     }

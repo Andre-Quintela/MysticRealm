@@ -61,6 +61,11 @@ public final class MysticConfig {
     public static final ModConfigSpec.LongValue LORD_TO_PRINCE_AGE_HOURS;
     public static final ModConfigSpec.LongValue PRINCE_TO_SOVEREIGN_AGE_HOURS;
 
+    // ── Multiblock (genérico) ─────────────────────────────────────────────────
+
+    public static final ModConfigSpec.DoubleValue MULTIBLOCK_BUILD_HEALTH_COST_PER_BLOCK;
+    public static final ModConfigSpec.IntValue MULTIBLOCK_BUILD_DELAY_TICKS;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -215,6 +220,18 @@ public final class MysticConfig {
         BUILDER.pop(); // infection
 
         BUILDER.pop(); // vampire
+
+        BUILDER.comment("Configurações do sistema de construção automática de multiblocos").push("multiblock");
+
+        MULTIBLOCK_BUILD_HEALTH_COST_PER_BLOCK = BUILDER
+            .translation("mysticrealm.configuration.multiblock.buildHealthCostPerBlock")
+            .defineInRange("buildHealthCostPerBlock", 1.0, 0.0, 20.0);
+
+        MULTIBLOCK_BUILD_DELAY_TICKS = BUILDER
+            .translation("mysticrealm.configuration.multiblock.buildDelayTicks")
+            .defineInRange("buildDelayTicks", 10, 1, 200);
+
+        BUILDER.pop(); // multiblock
 
         SPEC = BUILDER.build();
     }

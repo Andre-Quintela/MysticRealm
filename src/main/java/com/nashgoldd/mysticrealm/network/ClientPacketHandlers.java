@@ -2,7 +2,9 @@ package com.nashgoldd.mysticrealm.network;
 
 import com.nashgoldd.mysticrealm.attachment.PlayerSupernaturalData;
 import com.nashgoldd.mysticrealm.registry.MysticAttachments;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.client.ClientBuildFeedback;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.client.ClientStructureFeedback;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureBuildResultPacket;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.attachment.VampireData;
 import com.nashgoldd.mysticrealm.supernatural.vampire.client.ClientAbilityState;
@@ -75,6 +77,10 @@ public final class ClientPacketHandlers {
 
     public static void handleSyncStructureValidation(SyncStructureValidationPacket packet, IPayloadContext ctx) {
         ctx.enqueueWork(() -> ClientStructureFeedback.update(packet));
+    }
+
+    public static void handleSyncStructureBuildResult(SyncStructureBuildResultPacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> ClientBuildFeedback.update(packet));
     }
 
     public static void handleSyncAbilityData(SyncAbilityDataPacket packet, IPayloadContext ctx) {

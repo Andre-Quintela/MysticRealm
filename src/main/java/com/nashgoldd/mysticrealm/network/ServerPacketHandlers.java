@@ -5,9 +5,14 @@ import com.nashgoldd.mysticrealm.supernatural.ability.AbilityRegistry;
 import com.nashgoldd.mysticrealm.supernatural.ability.AbilityWheelData;
 import com.nashgoldd.mysticrealm.supernatural.channeling.ChannelService;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.IMultiblockController;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.MultiblockBuildResult;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.MultiblockBuilder;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.MultiblockValidationResult;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.StructureRegistry;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.effect.MultiblockFeedbackEffects;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureBuildPacket;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.network.RequestStructureValidationPacket;
+import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureBuildResultPacket;
 import com.nashgoldd.mysticrealm.supernatural.multiblock.network.SyncStructureValidationPacket;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.BloodDrainAction;
 import com.nashgoldd.mysticrealm.supernatural.vampire.feeding.DrainableEntityRegistry;
@@ -69,6 +74,28 @@ public final class ServerPacketHandlers {
             MultiblockValidationResult result = controller.revalidate(serverLevel);
             PacketDistributor.sendToPlayer(player, SyncStructureValidationPacket.from(packet.controllerPos(), result));
             MultiblockFeedbackEffects.spawnFeedbackParticles(serverLevel, result);
+        });
+    }
+
+    public static void handleRequestStructureBuild(RequestStructureBuildPacket packet, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) return;
+            if (!(player.level() instanceof ServerLevel serverLevel)) return;
+
+            BlockEntity blockEntity = serverLevel.getBlockEntity(packet.controllerPos());
+            if (!(blockEntity instanceof IMultiblockController controller)) return;
+
+            StructureRegistry.get(controller.getStructureId()).ifPresent(structure -> {
+                MultiblockBuildResult result = MultiblockBuilder.tryBuild(
+                    serverLevel, controller.getControllerPos(), structure.pattern(), player);
+
+                controller.setCachedResult(result.validation());
+
+                PacketDistributor.sendToPlayer(player,
+                    SyncStructureValidationPacket.from(packet.controllerPos(), result.validation()));
+                PacketDistributor.sendToPlayer(player,
+                    SyncStructureBuildResultPacket.from(packet.controllerPos(), result));
+            });
         });
     }
 

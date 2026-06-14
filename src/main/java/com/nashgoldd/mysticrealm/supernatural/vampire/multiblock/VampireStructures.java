@@ -29,7 +29,8 @@ public final class VampireStructures {
             .block(-3, 0, 0, BlockMatcher.of(Blocks.POLISHED_BLACKSTONE))
             .block(0, 0, 3, BlockMatcher.of(Blocks.POLISHED_BLACKSTONE))
             .block(0, 0, -3, BlockMatcher.of(Blocks.POLISHED_BLACKSTONE))
-            .build()
+            .build(),
+        1
     );
 
     private VampireStructures() {}
